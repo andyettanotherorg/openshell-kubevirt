@@ -1,6 +1,6 @@
 # Redeploy CRC from nightly GHCR
 
-After [Nightly rebase and rebuild](https://github.com/shanemcd/openshell-kubevirt/actions/workflows/nightly-rebuild.yml) is green, use the published OCI images on CRC.
+After [Nightly rebase and rebuild](https://github.com/andyettanotherorg/openshell-kubevirt/actions/workflows/nightly-rebuild.yml) is green, use the published OCI images on CRC.
 
 Always talk to the in-cluster gateway:
 
