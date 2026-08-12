@@ -15,11 +15,13 @@ Forks and product code stay in their upstreams; handoff notes, runbooks, and the
 
 ## Related repos
 
-| Repo | Fork branch |
-|------|-------------|
-| [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) → [shanemcd/agent-sandbox](https://github.com/shanemcd/agent-sandbox) | `kubevirt-backend` |
-| [NVIDIA/OpenShell](https://github.com/NVIDIA/OpenShell) → [shanemcd/OpenShell](https://github.com/shanemcd/OpenShell) | `vm-runtime-backend` |
-| [NVIDIA/NemoClaw](https://github.com/NVIDIA/NemoClaw) → [shanemcd/NemoClaw](https://github.com/shanemcd/NemoClaw) | `vm-runtime-backend` |
+| Repo | Fork branch | Tip (rebased 2026-08-12) | Same-fork compare vs `main` |
+|------|-------------|--------------------------|-----------------------------|
+| [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) → [andyettanotherorg/agent-sandbox](https://github.com/andyettanotherorg/agent-sandbox) | `kubevirt-backend` | [`a21b574`](https://github.com/andyettanotherorg/agent-sandbox/commit/a21b574d1f003209f49ae3c87621b6c606664a1a) | [compare](https://github.com/andyettanotherorg/agent-sandbox/compare/main...kubevirt-backend) |
+| [NVIDIA/OpenShell](https://github.com/NVIDIA/OpenShell) → [andyettanotherorg/OpenShell](https://github.com/andyettanotherorg/OpenShell) | `vm-runtime-backend` | [`1c79e1d`](https://github.com/andyettanotherorg/OpenShell/commit/1c79e1d73400821eb906267e1cc9915d25e020de) | [compare](https://github.com/andyettanotherorg/OpenShell/compare/main...vm-runtime-backend) |
+| [NVIDIA/NemoClaw](https://github.com/NVIDIA/NemoClaw) → [andyettanotherorg/NemoClaw](https://github.com/andyettanotherorg/NemoClaw) | `vm-runtime-backend` | [`832c188`](https://github.com/andyettanotherorg/NemoClaw/commit/832c188792a2c58be72246d1eaafae3d09eef582) | [compare](https://github.com/andyettanotherorg/NemoClaw/compare/main...vm-runtime-backend) |
+
+See [`TRACKING.md`](./TRACKING.md) for verify notes from the rebase Tasks.
 
 ## Nightly CI
 
@@ -47,8 +49,8 @@ Cross-repo git uses a GitHub App installation token (`actions/create-github-app-
 App permissions: **Contents: Read and write**, **Workflows: Read and write** (needed when upstream rebases touch `.github/workflows/*`). Install on `agent-sandbox`, `OpenShell`, and `NemoClaw`. Site Hermes sources are checked out from public `toolbox` (no App install required).
 
 ```bash
-gh variable set APP_CLIENT_ID --repo shanemcd/openshell-kubevirt --body '<client-id>'
-gh secret set APP_PRIVATE_KEY --repo shanemcd/openshell-kubevirt < /path/to/app.pem
+gh variable set APP_CLIENT_ID --repo andyettanotherorg/openshell-kubevirt --body '<client-id>'
+gh secret set APP_PRIVATE_KEY --repo andyettanotherorg/openshell-kubevirt < /path/to/app.pem
 ```
 
 `hermes-site-*` GHCR packages were first published from toolbox and may still be linked there. If `build-hermes-site` cannot push, add **openshell-kubevirt** with Write under each package’s Manage Actions access.
