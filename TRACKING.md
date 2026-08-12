@@ -2,6 +2,32 @@
 
 > **Read this first if you have no context.** This is the living handoff for running Hermes (NemoClaw) as a KubeVirt VM on CRC via OpenShell’s k8s driver + agent-sandbox `runtimeBackend: VirtualMachine`. **Home of this doc:** [`andyettanotherorg/openshell-kubevirt`](https://github.com/andyettanotherorg/openshell-kubevirt). Last updated **2026-08-12**.
 
+## Current state (2026-08-12) — seat internal registry tip images
+
+Feature-branch tips were baked **in-cluster** (privileged podman Job/Pod equivalent; no seat-local podman/buildah) and pushed to **`honr-registry.default.svc:5000`** only — **no** publish to `ghcr.io/andyettanotherorg` or shanemcd GHCR; fork `main` / upstream untouched. Prefer these digest pins over stale shanemcd nightlies on this seat.
+
+Registry: Service `honr-registry` / DNS `honr-registry.default.svc:5000` (HTTP, insecure). No ImageStream API — use refs/digests directly.
+
+| Image | Source tip | Tag(s) | Digest |
+|-------|------------|--------|--------|
+| `agent-sandbox-controller` | [`andyettanotherorg/agent-sandbox`](https://github.com/andyettanotherorg/agent-sandbox) `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` | `sha-a21b574`, `tip`, `kubevirt-backend` | `sha256:82810bd8146e4472d32b0a5870c76933bf5ab935fe0f3b45931c32d46ceb76a7` |
+| `openshell-gateway` | [`andyettanotherorg/OpenShell`](https://github.com/andyettanotherorg/OpenShell) `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` | `sha-1c79e1d`, `tip`, `kubevirt` | `sha256:916a1351c237e145c3a8ca1ecc881c655ceaa0f475b88be38316146247dc4d53` |
+| `openshell-supervisor` | same OpenShell tip (static `openshell-sandbox`) | `sha-1c79e1d`, `tip`, `kubevirt` | `sha256:367e0962f20fe5d2157eab330300094adde7b8bc6bf8f7b5c75866a417f93825` |
+| `nemoclaw-hermes` | [`andyettanotherorg/NemoClaw`](https://github.com/andyettanotherorg/NemoClaw) `vm-runtime-backend` @ `832c188792a2c58be72246d1eaafae3d09eef582` | `sha-832c188`, `tip`, `kubevirt` | `sha256:2bca6d937a226f87a518a6db9370f8f354147b106acb5fd127471013193d011c` |
+| `hermes-sandbox-bootc` | this repo `images/hermes/Containerfile.nemoclaw` + tip `nemoclaw-hermes` + tip `openshell-supervisor` | `tip`, `kubevirt` | `sha256:84f95f3a4f4c696921ccb8b07509110815bf65ce981bca62508cfa9193429a3a` |
+
+Example refs:
+
+```text
+honr-registry.default.svc:5000/agent-sandbox-controller@sha256:82810bd8146e4472d32b0a5870c76933bf5ab935fe0f3b45931c32d46ceb76a7
+honr-registry.default.svc:5000/openshell-gateway@sha256:916a1351c237e145c3a8ca1ecc881c655ceaa0f475b88be38316146247dc4d53
+honr-registry.default.svc:5000/openshell-supervisor@sha256:367e0962f20fe5d2157eab330300094adde7b8bc6bf8f7b5c75866a417f93825
+honr-registry.default.svc:5000/nemoclaw-hermes@sha256:2bca6d937a226f87a518a6db9370f8f354147b106acb5fd127471013193d011c
+honr-registry.default.svc:5000/hermes-sandbox-bootc@sha256:84f95f3a4f4c696921ccb8b07509110815bf65ce981bca62508cfa9193429a3a
+```
+
+**Bake notes:** OpenShell gateway staged with `cargo zigbuild` + `bundled-z3`; supervisor musl static. NemoClaw tip image finished with ownership repairs under podman overlay (setgid inheritance differs from BuildKit). Hermes bootc Containerfile no longer `COPY`s `gosu` (absent on NemoClaw tip). **containerDisk** (`hermes-sandbox-kubevirt` qcow2 via bootc-image-builder) not produced this pass — use tip `hermes-sandbox-bootc` as the guest artifact; convert separately when bib time is budgeted.
+
 ## Current state (2026-08-12) — fork rebases onto upstream `main`
 
 Feature branches on the `andyettanotherorg` forks were rebased onto upstream `main` and force-pushed (fork `main` untouched; no upstream push). Tips + same-fork compare vs fork `main`:
