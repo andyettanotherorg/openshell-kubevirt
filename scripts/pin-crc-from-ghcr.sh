@@ -3,7 +3,7 @@
 set -euo pipefail
 
 TAG="${TAG:-nightly}"
-OWNER="${OWNER:-shanemcd}"
+OWNER="${OWNER:-andyettanotherorg}"
 CTRL_IMAGE="ghcr.io/${OWNER}/agent-sandbox-controller:${TAG}"
 GW_IMAGE="ghcr.io/${OWNER}/openshell-gateway:${TAG}"
 

@@ -25,7 +25,7 @@ See [`TRACKING.md`](./TRACKING.md) for verify notes from the rebase Tasks.
 
 ## Seat internal registry (honr-registry tip bake)
 
-On the MicroShift seat, tip images are built in-cluster and pushed to **`honr-registry.default.svc:5000`** (Service `honr-registry` in `default`). Do **not** pin this seat to stale `ghcr.io/shanemcd` nightlies unless those layers are rebuilt from the tips below into the internal registry. Digest table + bake notes: [`TRACKING.md`](./TRACKING.md) § *seat internal registry tip images*.
+On the MicroShift seat, tip images are built in-cluster and pushed to **`honr-registry.default.svc:5000`** (Service `honr-registry` in `default`). Do **not** pin this seat to stale GHCR nightlies unless those layers are rebuilt from the tips below into the internal registry. Digest table + bake notes: [`TRACKING.md`](./TRACKING.md) § *seat internal registry tip images*.
 
 | Image | Tip source |
 |-------|------------|
@@ -45,7 +45,7 @@ Workflow: [`.github/workflows/nightly-rebuild.yml`](.github/workflows/nightly-re
   - `push_images` (default on): build/push GHCR images
   - `build_container_disk` (default on): bootc-image-builder → `hermes-sandbox-kubevirt` + `hermes-minimal-kubevirt`
   - `build_hermes` / `build_hermes_minimal` (default off): rebuild one variant’s bootc without full `push_images`
-  - `build_site_hermes` (default on): checkout [`shanemcd/toolbox`](https://github.com/shanemcd/toolbox) `openshell-kubevirt/` → `hermes-site-bootc` + `hermes-site-kubevirt`
+  - `build_site_hermes` (default on): checkout public [`shanemcd/toolbox`](https://github.com/shanemcd/toolbox) `openshell-kubevirt/` → push `hermes-site-bootc` + `hermes-site-kubevirt` to `ghcr.io/andyettanotherorg`
 
 Rebases run in parallel for agent-sandbox, OpenShell, and NemoClaw. Image builds that can run in parallel do; `hermes-sandbox-bootc` (nemoclaw) waits on supervisor + `nemoclaw-hermes`; `hermes-minimal-bootc` waits on supervisor only; containerDisk jobs wait on their bootc; site Hermes layers on the hermes-minimal bootc.
 
@@ -68,20 +68,20 @@ gh secret set APP_PRIVATE_KEY --repo andyettanotherorg/openshell-kubevirt < /pat
 `hermes-site-*` GHCR packages were first published from toolbox and may still be linked there. If `build-hermes-site` cannot push, add **openshell-kubevirt** with Write under each package’s Manage Actions access.
 ### GHCR images (amd64) — nightly CI publish path
 
-> Seat deploy should prefer **honr-registry tip digests** (above / TRACKING). The GHCR table below is the nightly workflow output path (`shanemcd` / org GHCR), not the seat pin.
+> Seat deploy should prefer **honr-registry tip digests** (above / TRACKING). The GHCR table below is the nightly workflow output path (`ghcr.io/andyettanotherorg`), not the seat pin.
 
 | Image | Source |
 |-------|--------|
-| `ghcr.io/shanemcd/agent-sandbox-controller` | agent-sandbox `kubevirt-backend` |
-| `ghcr.io/shanemcd/openshell-gateway` | OpenShell `vm-runtime-backend` |
-| `ghcr.io/shanemcd/openshell-supervisor` | OpenShell `vm-runtime-backend` |
-| `ghcr.io/shanemcd/nemoclaw-hermes` | NemoClaw `vm-runtime-backend` (input to nemoclaw bootc) |
-| `ghcr.io/shanemcd/hermes-sandbox-bootc` | [`images/hermes/Containerfile.nemoclaw`](./images/hermes/Containerfile.nemoclaw) |
-| `ghcr.io/shanemcd/hermes-sandbox-kubevirt` | nemoclaw bootc → qcow2 containerDisk (`/disk/fedora.qcow2`) |
-| `ghcr.io/shanemcd/hermes-minimal-bootc` | [`images/hermes/Containerfile.minimal`](./images/hermes/Containerfile.minimal) |
-| `ghcr.io/shanemcd/hermes-minimal-kubevirt` | minimal bootc → qcow2 containerDisk |
-| `ghcr.io/shanemcd/hermes-site-bootc` | [`shanemcd/toolbox`](https://github.com/shanemcd/toolbox) `openshell-kubevirt/` on hermes-minimal bootc |
-| `ghcr.io/shanemcd/hermes-site-kubevirt` | site bootc → qcow2 containerDisk (CRC / create `--from`) |
+| `ghcr.io/andyettanotherorg/agent-sandbox-controller` | agent-sandbox `kubevirt-backend` |
+| `ghcr.io/andyettanotherorg/openshell-gateway` | OpenShell `vm-runtime-backend` |
+| `ghcr.io/andyettanotherorg/openshell-supervisor` | OpenShell `vm-runtime-backend` |
+| `ghcr.io/andyettanotherorg/nemoclaw-hermes` | NemoClaw `vm-runtime-backend` (input to nemoclaw bootc) |
+| `ghcr.io/andyettanotherorg/hermes-sandbox-bootc` | [`images/hermes/Containerfile.nemoclaw`](./images/hermes/Containerfile.nemoclaw) |
+| `ghcr.io/andyettanotherorg/hermes-sandbox-kubevirt` | nemoclaw bootc → qcow2 containerDisk (`/disk/fedora.qcow2`) |
+| `ghcr.io/andyettanotherorg/hermes-minimal-bootc` | [`images/hermes/Containerfile.minimal`](./images/hermes/Containerfile.minimal) |
+| `ghcr.io/andyettanotherorg/hermes-minimal-kubevirt` | minimal bootc → qcow2 containerDisk |
+| `ghcr.io/andyettanotherorg/hermes-site-bootc` | public [`shanemcd/toolbox`](https://github.com/shanemcd/toolbox) `openshell-kubevirt/` on hermes-minimal bootc |
+| `ghcr.io/andyettanotherorg/hermes-site-kubevirt` | site bootc → qcow2 containerDisk (CRC / create `--from`) |
 
 Tags: `nightly`, `YYYYMMDD`, `sha-<short>` (plus `kubevirt` on openshell-supervisor; site also tags `latest`).
 

@@ -698,8 +698,8 @@ jobs:
             -t "${IMAGE}:sha-${SHORT}" \
             "$PKG"
 
-  # Site Hermes layers live in shanemcd/toolbox (openshell-kubevirt/); CI is
-  # centralized here so public bootc + site disk rebuild in one pipeline.
+  # Site Hermes layers live in public shanemcd/toolbox (openshell-kubevirt/);
+  # images still publish to ghcr.io/${{ github.repository_owner }}.
   build-hermes-site:
     needs: [meta, build-hermes-minimal-bootc]
     if: |
@@ -717,7 +717,8 @@ jobs:
       - name: Checkout toolbox site layers
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/toolbox
+          # No andyettanotherorg/toolbox fork yet; site sources stay on public shanemcd/toolbox.
+          repository: shanemcd/toolbox
           path: toolbox
 
       - uses: docker/setup-buildx-action@v3
