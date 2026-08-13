@@ -43,9 +43,11 @@ oc -n openshell get route openshell -o jsonpath='{.spec.host}{"\n"}'
 openshell gateway add --name crc --remote "$(whoami)@127.0.0.1" \
   "https://openshell-openshell.apps.crc.testing"
 # Adjust host to match `oc get route`. If mTLS files already live under
-# ~/.config/openshell/gateways/crc/, prefer re-using that registration over
+# ~/.config/openshell/gateways/crc/mtls/, prefer re-using that registration over
 # re-adding.
 ```
+
+After regenerating `openshell-server-tls` (e.g. to add the Route SAN), re-seed client material from the **same** CA into `openshell-client-tls` (gateway + `default` mirror) and `~/.config/openshell/gateways/crc/mtls/`. A stale client CA produces `BadSignature` / handshake failures even when the Route host is correct.
 
 Never set `OPENSHELL_GATEWAY_ENDPOINT` for CRC Hermes — it overrides gateway metadata and historically pointed at the host kubevirt driver.
 
@@ -128,7 +130,14 @@ IMAGE="ghcr.io/andyetanotherorg/hermes-site-kubevirt@${DISK_DIG}"
 
 ### 2-create. Fresh site sandbox (no existing Hermes)
 
-Policy lives in public [`shanemcd/toolbox`](https://github.com/shanemcd/toolbox) `openshell-kubevirt/policy.yaml`.
+Policy lives in public [`shanemcd/toolbox`](https://github.com/shanemcd/toolbox) `openshell-kubevirt/policy.yaml`. If create fails policy validation on Slack hosts (`*.slack.com` websocket overlapping `files.slack.com` rest), drop the specific `files.slack.com` entry for that create (or fix upstream in toolbox).
+
+When TopoLVM / dynamic provisioning cannot bind a workspace claim, create a static hostpath PV/PVC first and pass it through (see §5):
+
+```bash
+# --workspace-pvc workspace-hermes-kv-proof
+# or: --driver-config-json '{"kubernetes":{"workspace_pvc":"workspace-hermes-kv-proof"}}'
+```
 
 ```bash
 export OPENSHELL_GATEWAY=crc   # or: openshell-kubevirt …
@@ -150,7 +159,7 @@ done
 openshell sandbox provider list hermes
 ```
 
-Use a throwaway name (e.g. `hermes-kv-proof`) if you want to avoid colliding with a restored `hermes` PVC/backup.
+Use a throwaway name (e.g. `hermes-kv-proof`) if you want to avoid colliding with a restored `hermes` PVC/backup. If create omits `--provider`, attach via §3 after Ready.
 
 ### 2a. Upgrade disk in place (keep `/sandbox` data) — preferred when Hermes already exists
 
@@ -312,6 +321,33 @@ virtctl ssh root@vmi/hermes -n default -i ~/.ssh/id_rsa \
 ```
 
 Also confirm Slack / Signal / inference after an in-place disk restart or recreate.
+
+CLI form (combined mode): `openshell sandbox exec whoami` — sandbox name is `-n` / last-used, **not** a positional before the command (`exec hermes whoami` runs `hermes` as the remote argv[0]).
+
+## 5. CRC create gotchas (2026-08-13)
+
+Hit while bringing up `hermes-kv-proof` / `hermes-site-kubevirt` on MicroShift:
+
+### SA token Secret name mismatch → stuck `Provisioning`
+
+OpenShell’s k8s VM path mounts Secret `{sandboxName}-openshell-sa-token` (e.g. `hermes-kv-proof-openshell-sa-token`). agent-sandbox names the Sandbox CR `default--{sandboxName}` and mints `default--{sandboxName}-openshell-sa-token`. If those diverge, the guest presents a stale/wrong BoundServiceAccountToken; gateway logs show `IssueSandboxToken` TokenReview failures (`pod UID … does not match service account pod ref claim`) and the CLI stays on **Provisioning** even when the VMI is Running.
+
+**Workaround until fixed upstream:** keep the VM-mounted Secret’s `token` key identical to the controller-managed Secret (patch on mint/refresh), then `virtctl restart` so the guest remounts. A one-shot alias is not enough — the controller refreshes when the bootstrap Pod UID changes.
+
+**Real fix:** align OpenShell `secretName` with the Sandbox CR name prefix (`default--…`) or teach the controller to use the short name the driver emits.
+
+### Static hostpath workspace + QEMU `Permission denied`
+
+When TopoLVM cannot schedule (`node(s) did not have enough free storage`), use a manual `hostPath` PV/PVC and `--workspace-pvc` / `kubernetes.workspace_pvc`. KubeVirt writes `disk.img` under the hostpath; QEMU in the virt-launcher must be able to open it. Match a working virt-test volume: owner `107:107`, mode `666`, SELinux `container_file_t` on the `disk.img` (and parent dirs as needed). Wrong perms → VMI crash / `Permission denied` on the workspace disk.
+
+### mTLS / Route
+
+Prefer the passthrough Route (`oc -n openshell get route openshell` — on this seat often `openshell-openshell.apps.crc.testing`, not `apps-crc.testing`). After any server-cert regen, client CA must match (see gateway registration above).
+
+### Policy + providers
+
+- Toolbox Slack policy: `*.slack.com` + `files.slack.com` can fail OpenShell policy validation — strip the specific host for create.
+- Create **without** `--provider` leaves an empty attach set; run §3 after Ready.
 
 ## Notes
 
