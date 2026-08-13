@@ -37,6 +37,8 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  # type=gha BuildKit cache + rust-cache / mise-action write Actions cache entries.
+  actions: write
 
 env:
   REGISTRY: ghcr.io/${{ github.repository_owner }}
@@ -266,7 +268,11 @@ jobs:
           ref: ${{ needs.rebase-agent-sandbox.outputs.sha }}
           path: src
 
+      # Go compile lives inside the Dockerfile; BuildKit GHA cache keeps go mod
+      # download + compile layers across nightly runs.
       - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         with:
@@ -288,6 +294,8 @@ jobs:
           docker buildx build \
             --platform=linux/amd64 \
             --push \
+            --cache-from type=gha,scope=agent-sandbox-controller \
+            --cache-to type=gha,mode=max,scope=agent-sandbox-controller \
             -t "${IMAGE}:nightly" \
             -t "${IMAGE}:${DATE}" \
             -t "${IMAGE}:sha-${SHORT}" \
@@ -311,6 +319,8 @@ jobs:
           fetch-depth: 0
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         with:
@@ -318,9 +328,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Rust builds on the runner (stage-prebuilt-binaries), then a thin image.
       - uses: jdx/mise-action@v2
         with:
           working_directory: src
+          cache: true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src
+          shared-key: openshell
+          cache-on-failure: true
 
       - name: Stage gateway binary and push image
         working-directory: src
@@ -336,12 +354,15 @@ jobs:
           mise install --locked
           DOCKER_PLATFORM=linux/amd64 tasks/scripts/stage-prebuilt-binaries.sh gateway
           # Script maps IMAGE_REGISTRY + openshell/gateway → ${REGISTRY}/gateway
+          # OpenShell disables local BuildKit cache when CI=1; pass GHA scopes via extra args.
           IMAGE_REGISTRY="${REGISTRY}" \
           IMAGE_TAG="${TAG}" \
           DOCKER_PLATFORM=linux/amd64 \
           DOCKER_PUSH=1 \
           CI=1 \
-            tasks/scripts/docker-build-image.sh gateway
+            tasks/scripts/docker-build-image.sh gateway \
+              --cache-from type=gha,scope=openshell-gateway \
+              --cache-to type=gha,mode=max,scope=openshell-gateway
           SRC="${REGISTRY}/gateway:${TAG}"
           for t in nightly "${DATE}" "${TAG}"; do
             docker buildx imagetools create \
@@ -363,6 +384,8 @@ jobs:
           fetch-depth: 0
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         with:
@@ -373,6 +396,13 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           working_directory: src
+          cache: true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src
+          shared-key: openshell
+          cache-on-failure: true
 
       - name: Stage supervisor binary and push image
         working-directory: src
@@ -392,7 +422,9 @@ jobs:
           DOCKER_PLATFORM=linux/amd64 \
           DOCKER_PUSH=1 \
           CI=1 \
-            tasks/scripts/docker-build-image.sh supervisor
+            tasks/scripts/docker-build-image.sh supervisor \
+              --cache-from type=gha,scope=openshell-supervisor \
+              --cache-to type=gha,mode=max,scope=openshell-supervisor
           SRC="${REGISTRY}/supervisor:${TAG}"
           for t in nightly "${DATE}" "${TAG}" kubevirt; do
             docker buildx imagetools create \
@@ -413,6 +445,8 @@ jobs:
           path: src
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         with:
@@ -434,6 +468,8 @@ jobs:
           docker buildx build \
             --platform=linux/amd64 \
             --push \
+            --cache-from type=gha,scope=nemoclaw-hermes \
+            --cache-to type=gha,mode=max,scope=nemoclaw-hermes \
             -t "${IMAGE}:nightly" \
             -t "${IMAGE}:${DATE}" \
             -t "${IMAGE}:sha-${SHORT}" \
@@ -469,6 +505,8 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
         if: needs.meta.outputs.push_images == 'true' || needs.meta.outputs.build_hermes == 'true'
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         if: needs.meta.outputs.push_images == 'true' || needs.meta.outputs.build_hermes == 'true'
@@ -499,6 +537,8 @@ jobs:
           docker buildx build \
             --platform=linux/amd64 \
             --push \
+            --cache-from type=gha,scope=hermes-sandbox-bootc \
+            --cache-to type=gha,mode=max,scope=hermes-sandbox-bootc \
             --build-arg "OPENSHELL_SUPERVISOR_IMAGE=${REGISTRY}/openshell-supervisor:nightly" \
             -t "${IMAGE}:nightly" \
             -t "${IMAGE}:${DATE}" \
@@ -533,6 +573,8 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
         if: needs.meta.outputs.push_images == 'true' || needs.meta.outputs.build_hermes_minimal == 'true'
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         if: needs.meta.outputs.push_images == 'true' || needs.meta.outputs.build_hermes_minimal == 'true'
@@ -558,6 +600,8 @@ jobs:
           docker buildx build \
             --platform=linux/amd64 \
             --push \
+            --cache-from type=gha,scope=hermes-minimal-bootc \
+            --cache-to type=gha,mode=max,scope=hermes-minimal-bootc \
             --build-arg "OPENSHELL_SUPERVISOR_IMAGE=${REGISTRY}/openshell-supervisor:nightly" \
             -t "${IMAGE}:nightly" \
             -t "${IMAGE}:${DATE}" \
@@ -578,6 +622,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         with:
@@ -648,6 +694,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         with:
@@ -728,6 +776,8 @@ jobs:
           path: toolbox
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
 
       - uses: docker/login-action@v3
         with:
@@ -744,6 +794,8 @@ jobs:
           docker buildx build \
             --platform=linux/amd64 \
             --push \
+            --cache-from type=gha,scope=hermes-site-bootc \
+            --cache-to type=gha,mode=max,scope=hermes-site-bootc \
             --build-arg "BASE_IMAGE=${BASE_IMAGE}" \
             -t "${BOOTC_IMAGE}:latest" \
             -t "${BOOTC_IMAGE}:${DATE}" \
