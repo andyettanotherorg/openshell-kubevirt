@@ -4,6 +4,17 @@
 
 **Org move (2026-08-13):** forks + this tracking repo transferred from `andyettanotherorg` → `andyetanotherorg`. Old GitHub URLs redirect. Existing GHCR packages may still live under `ghcr.io/andyettanotherorg` until transferred or rebuilt under `ghcr.io/andyetanotherorg` (`REGISTRY` follows `github.repository_owner`).
 
+## Current state (2026-08-13) — CRC pinned to GHCR nightlies
+
+Full nightly [31687273554](https://github.com/andyetanotherorg/openshell-kubevirt/actions/runs/31687273554) succeeded. CRC MicroShift pulls `ghcr.io/andyetanotherorg/…` digests directly via [`scripts/pin-crc-from-ghcr.sh`](./scripts/pin-crc-from-ghcr.sh) (controller + gateway together). Do **not** copy images into an internal registry — see [`REDEPLOY.md`](./REDEPLOY.md).
+
+| Component | Namespace | Image | Tip |
+|-----------|-----------|-------|-----|
+| agent-sandbox controller | `agent-sandbox-system` | `ghcr.io/andyetanotherorg/agent-sandbox-controller@sha256:179d60df5e542f4faa912e7ad683e16918a4f6fe6f22f37cf5c9d954e97c2e24` | `kubevirt-backend` @ `bc4bcaa` |
+| OpenShell gateway STS | `openshell` | `ghcr.io/andyetanotherorg/openshell-gateway@sha256:d29c9a8c6dc2e65756261d1b16c2b801c5e8af6c079c5e9883d07ed26b0ff01e` | `vm-runtime-backend` @ `d93a6a5` |
+
+Both pods **Ready** after pin (GHCR pull OK). Host CLI still needs a passthrough Route + gateway name `crc` (Route was empty at pin time).
+
 ## Current state (2026-08-13) — nightly-rebuild green on `ghcr.io/andyetanotherorg`
 
 Proof `workflow_dispatch` of [`.github/workflows/nightly-rebuild.yml`](./.github/workflows/nightly-rebuild.yml) on `honr/card-55` completed **success** (minimal green subset: `rebase=false`, `push_images=true`, `build_container_disk=false`, `build_site_hermes=false`).
@@ -14,7 +25,7 @@ Proof `workflow_dispatch` of [`.github/workflows/nightly-rebuild.yml`](./.github
 
 **Jobs in scope:** meta + rebases (skip push) + `build-agent-sandbox` + `build-openshell-gateway` + `build-openshell-supervisor` + `build-nemoclaw-hermes` + `build-hermes-bootc` + `build-hermes-minimal-bootc` all **success**. Skipped (by design): containerDisk + site Hermes (multi-hour bib).
 
-**Published image refs** (`ghcr.io/andyetanotherorg/…`; tags from workflow; digests not readable from this seat — GHCR egress denied):
+**Published image refs** (`ghcr.io/andyetanotherorg/…`; tags from workflow):
 
 | Image | Tags | Source tip |
 |-------|------|------------|
@@ -27,7 +38,9 @@ Proof `workflow_dispatch` of [`.github/workflows/nightly-rebuild.yml`](./.github
 
 Not published this pass: `hermes-sandbox-kubevirt`, `hermes-minimal-kubevirt`, `hermes-site-*` (inputs off).
 
-## Current state (2026-08-13) — MicroShift seat deploy + smoke (honr-registry tips)
+## Historical (2026-08-13) — MicroShift seat deploy + smoke (honr-registry tips)
+
+> **Superseded.** CRC now pins GHCR nightlies directly ([`REDEPLOY.md`](./REDEPLOY.md) / section above). The honr-registry bake below is journal only.
 
 Deployed agent-sandbox controller + OpenShell gateway (VM backend) onto the seat MicroShift cluster from **internal registry digests** only (not `ghcr.io/andyetanotherorg`, not shanemcd GHCR). Fork `main` / upstream untouched.
 
@@ -75,7 +88,9 @@ oc -n openshell rollout status sts/openshell  # Ready
 
 **Out of scope (unchanged):** full CRC live Hermes redeploy with providers/Slack; GHCR rebuilds; nightly workflow edits; merging feature branches into fork main.
 
-## Current state (2026-08-12) — seat internal registry tip images
+## Historical (2026-08-12) — seat internal registry tip images
+
+> **Superseded.** Prefer GHCR digests from nightly CI; pin with [`scripts/pin-crc-from-ghcr.sh`](./scripts/pin-crc-from-ghcr.sh).
 
 Feature-branch tips were baked **in-cluster** (privileged podman Job/Pod equivalent; no seat-local podman/buildah) and pushed to **`honr-registry.default.svc:5000`** only — **no** publish to `ghcr.io/andyetanotherorg` or shanemcd GHCR; fork `main` / upstream untouched. Prefer these digest pins over stale shanemcd nightlies on this seat.
 
@@ -171,7 +186,7 @@ Bootc image ([`images/hermes/Containerfile.nemoclaw`](./images/hermes/Containerf
 | Gateway `openshell-0` | **Ready 1/1** (Fedora 44 image; pin STS to **digest**, not tag alone) |
 | Gateway config | `sandbox_namespace = "default"`, `runtime_backend = "VirtualMachine"`, `sandbox_command` empty or `/usr/local/bin/sandbox-entrypoint` (image owns nemoclaw-start-vm vs hermes-start.sh), `workspace_persistence = true`, `client_tls_secret_name = "openshell-client-tls"` |
 | Route (prefer this) | `openshell-openshell.apps-crc.testing` → svc `openshell:grpc` (**TLS passthrough**). CLI gateway `crc` already points here with mTLS. **Do not use `oc port-forward` for normal work.** |
-| agent-sandbox controller | Virtio Secret metadata + optional kubevirt RBAC on fork. **Pin deploy image to digest** (`istag …:kubevirt`). After redeploy with the RBAC split, apply `k8s/kubevirt*.yaml` or `--kubevirt` / `KUBEVIRT=true`. |
+| agent-sandbox controller | Virtio Secret metadata + optional kubevirt RBAC on fork. **Pin deploy image to a GHCR digest** (`./scripts/pin-crc-from-ghcr.sh`). After redeploy with the RBAC split, apply `k8s/kubevirt*.yaml` or `--kubevirt` / `KUBEVIRT=true`. |
 | OpenShell k8s driver (in gateway) | VM path emits TLS Secret volume/mount + `OPENSHELL_TLS_{CA,CERT,KEY}` path env (same as pods); workspace VCT when persistence enabled |
 | Hermes Sandbox / VMI | `default/hermes` Ready / Running; Slack Socket Mode recovered after guest volume prep fixes |
 | Guest metadata | Virtio `sandboxmeta` + Secret disks; `/etc/sandbox/{env,volumes.json}` + `/etc/openshell-tls/client/{ca.crt,tls.crt,tls.key}` |
@@ -200,25 +215,23 @@ Bootc image ([`images/hermes/Containerfile.nemoclaw`](./images/hermes/Containerf
 
 ### Next action (highest priority)
 
-1. Redeploy controller from tip of `kubevirt-backend` and **bind optional KubeVirt RBAC** (`kubectl apply -f k8s/kubevirt-rbac.generated.yaml -f k8s/kubevirt.yaml` or `./dev/tools/deploy-to-kube --kubevirt`).
-2. Optionally point Sandbox / create flow at `quay.io/shanemcd/hermes-sandbox-kubevirt:latest` (CRC still works from the internal IS).
+1. Pin CRC controller + gateway from GHCR (`./scripts/pin-crc-from-ghcr.sh`) and **bind optional KubeVirt RBAC** (`kubectl apply -f k8s/kubevirt-rbac.generated.yaml -f k8s/kubevirt.yaml` or `./dev/tools/deploy-to-kube --kubevirt`).
+2. Create/upgrade Hermes with `ghcr.io/andyetanotherorg/hermes-site-kubevirt@digest` ([`REDEPLOY.md`](./REDEPLOY.md)).
 3. Optionally set `sandbox_namespace = "openshell"` (or sync client TLS Secret into `default` from deploy).
 4. Prove workspace PVC end-to-end on a clean recreate (no manual CR patches) — see Still open.
 5. Commit remaining clankr guest image/doc changes; open upstream PRs when ready.
 
 ### Redeploy gotchas (do not repeat)
 
-**Controller / gateway images are digest-pinned.** `podman push …:tag` + `rollout restart` can leave the pod on the **old digest**. Always:
+**Controller / gateway images are digest-pinned to GHCR.** `rollout restart` alone can leave the pod on an old digest. Always:
 
 ```bash
-# Controller
-NEW=$(oc get istag agent-sandbox-controller:kubevirt -n agent-sandbox-system -o jsonpath='{.image.dockerImageReference}')
-oc -n agent-sandbox-system set image deploy/agent-sandbox-controller "*=$NEW"
-
-# Gateway
-NEW=$(oc get istag openshell-gateway:dev -n openshell -o jsonpath='{.image.dockerImageReference}')
-oc -n openshell patch sts openshell --type=json -p="[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/image\",\"value\":\"$NEW\"}]"
+export KUBECONFIG=~/.crc/machines/crc/kubeconfig
+./scripts/pin-crc-from-ghcr.sh
+# or TAG=YYYYMMDD ./scripts/pin-crc-from-ghcr.sh
 ```
+
+That sets both `agent-sandbox-controller` and `openshell-gateway` to `ghcr.io/andyetanotherorg/…@sha256:…` from the `:nightly` (or date) tag.
 
 **KubeVirt RBAC (after `e324bbf`):** core ClusterRole has **no** `kubevirt.io`. VirtualMachine sandboxes need:
 
@@ -230,14 +243,7 @@ kubectl apply -f k8s/kubevirt-rbac.generated.yaml -f k8s/kubevirt.yaml
 
 **Gateway binary build (Fedora 44 toolbox):** `--features bundled-z3`, package with `FROM registry.fedoraproject.org/fedora:44` (not distroless) unless using `cargo-zigbuild`. Never put unknown TOML keys in the ConfigMap before the binary that understands them is running.
 
-**Bootc → disk:** `build-hermes-bootc.sh` → push `hermes-sandbox-bootc` → in-cluster `bootc-builder` + `disk-packager` → CRC `hermes-sandbox-kubevirt:latest`. Mirror to Quay:
-
-```bash
-REG=default-route-openshift-image-registry.apps-crc.testing
-podman pull --tls-verify=false "$REG/openshell-sandboxes/hermes-sandbox-kubevirt:latest"
-podman tag "$REG/openshell-sandboxes/hermes-sandbox-kubevirt:latest" quay.io/shanemcd/hermes-sandbox-kubevirt:latest
-podman push quay.io/shanemcd/hermes-sandbox-kubevirt:latest
-```
+**Bootc → disk:** nightly CI runs bootc-image-builder and publishes `hermes-*-kubevirt` to GHCR. Pin create/`--from` to a GHCR digest ([`REDEPLOY.md`](./REDEPLOY.md)).
 
 ---
 
@@ -616,15 +622,14 @@ CRDs regenerated with `make fix-go-generate` (conversion webhook via `sort-crd-v
 
 | Component | Namespace | Image | Notes |
 |-----------|-----------|-------|-------|
-| Agent-sandbox controller | `agent-sandbox-system` | `…/agent-sandbox-controller:kubevirt` | Tip has virtio metadata + optional kubevirt RBAC — **redeploy + bind kubevirt Role** if not already |
-| OpenShell gateway | `openshell` | `…/openshell-gateway@sha256:f0a8e2a7…` (**Fedora 44** base, bundled-z3) | STS image **digest-pinned**; `workspace_persistence = true` |
-| Host CLI gateway | (registration `crc`) | Route `openshell-openshell.apps-crc.testing` | mTLS; `is_remote: true`; `OPENSHELL_GATEWAY=crc` |
+| Agent-sandbox controller | `agent-sandbox-system` | `ghcr.io/andyetanotherorg/agent-sandbox-controller@sha256:179d60df…` | Pinned from nightly (`sha-bc4bcaa`); bind kubevirt RBAC if missing |
+| OpenShell gateway | `openshell` | `ghcr.io/andyetanotherorg/openshell-gateway@sha256:d29c9a8c…` | Distroless nightly (`sha-d93a6a5`); `workspace_persistence = true` |
+| Host CLI gateway | (registration `crc`) | Route (passthrough) | mTLS; `OPENSHELL_GATEWAY=crc` — recreate Route if missing |
 | Local quadlets | (host systemd) | `openshell-gateway` (daily `openshell-ts`) + optional kubevirt driver | Keep **gateway**; mask **driver only** for CRC Hermes (see REDEPLOY) |
-| Live supervisor binary | (on VM) | `/opt/openshell/bin/openshell-sandbox` | Baked sidecar binary (no `/tmp` patch) |
-| Hermes containerDisk (CRC) | `openshell-sandboxes` | `hermes-sandbox-kubevirt:latest` | Rebuilt 2026-07-11 night |
-| Hermes containerDisk (Quay) | — | `quay.io/shanemcd/hermes-sandbox-kubevirt:latest` | `@sha256:59d8793f…` (= CRC); also tag `20260711` |
-| Hermes VMI | `default` | `hermes` | Running; Slack up; workspace virtio disk present |
-| Workspace PVC | `default` | `workspace-hermes` | Bound |
+| Live supervisor binary | (on VM) | `/opt/openshell/bin/openshell-sandbox` | Baked into guest bootc |
+| Hermes containerDisk | (create `--from`) | `ghcr.io/andyetanotherorg/hermes-site-kubevirt:nightly` | Preferred CRC site guest |
+| Hermes VMI | `default` | (none until create) | See [`REDEPLOY.md`](./REDEPLOY.md) §2-create |
+| Workspace PVC | `default` | `workspace-hermes` | Bound when Sandbox exists |
 
 **In-cluster gateway config (effective):** TLS + client CA mounted; `allow_unauthenticated_users = true`; `[openshell.drivers.kubernetes]` with `runtime_backend = "VirtualMachine"`, `sandbox_command` empty or `/usr/local/bin/sandbox-entrypoint`, `workspace_persistence = true`, `sandbox_namespace = "default"`. Route termination: **passthrough**.
 
@@ -643,36 +648,20 @@ server.workspacePersistence=true
 
 **After every Hermes recreate:** attach all four (`github`, `slack`, `vertex-prod`, `atlassian`). Provider links are per-sandbox and do not survive delete. Vertex can answer via inference without an attach — still attach. See [`REDEPLOY.md`](./REDEPLOY.md) §3.
 
-### Rebuild / redeploy gateway (CRC local)
+### Rebuild / redeploy gateway + controller
+
+Prefer the nightly GHCR images — do not push into a CRC/OpenShift registry for day-2 pins:
 
 ```bash
-# Inside fedora-toolbox-44 (or host Fedora 44), from an OpenShell checkout on vm-runtime-backend:
-cd /path/to/OpenShell
-cargo build -p openshell-server --release --bin openshell-gateway --features bundled-z3
-mkdir -p deploy/docker/.build/prebuilt-binaries/amd64
-cp -f target/release/openshell-gateway deploy/docker/.build/prebuilt-binaries/amd64/
-
-# One-off Fedora 44 runtime (matches toolbox libstdc++; NOT upstream Dockerfile.gateway):
-podman build -f - -t openshell-gateway:dev . <<'EOF'
-FROM registry.fedoraproject.org/fedora:44
-COPY deploy/docker/.build/prebuilt-binaries/amd64/openshell-gateway /usr/local/bin/openshell-gateway
-RUN useradd -u 1000 -m -s /sbin/nologin openshell
-USER 1000:1000
-EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/openshell-gateway"]
-CMD ["--bind-address", "0.0.0.0", "--port", "8080"]
-EOF
-
-REG=default-route-openshift-image-registry.apps-crc.testing
-podman login -u kubeadmin -p "$(oc whoami -t)" "$REG" --tls-verify=false
-podman tag openshell-gateway:dev "$REG/openshell/openshell-gateway:dev"
-podman push --tls-verify=false "$REG/openshell/openshell-gateway:dev"
-# Then pin STS to the new ImageStream digest and delete pod openshell-0
+export KUBECONFIG=~/.crc/machines/crc/kubeconfig
+./scripts/pin-crc-from-ghcr.sh
 ```
+
+For a one-off local gateway binary experiment, build on the host/toolbox and run it outside CRC; CRC verify stays on `ghcr.io/andyetanotherorg/openshell-gateway@…`.
 
 ### Rebuild / redeploy agent-sandbox controller
 
-Build/push `agent-sandbox-controller:kubevirt` to the CRC registry (prior session used image registry NS `agent-sandbox-system`). After Go changes in `controllers/`, redeploy Deployment `agent-sandbox-system/agent-sandbox-controller`. Use a Fedora toolbox for Go if host tools are missing.
+Same pin script as above (`agent-sandbox-controller` from `kubevirt-backend`). After Go changes on the fork, wait for nightly (or a `workflow_dispatch` with `push_images=true`) then re-run `./scripts/pin-crc-from-ghcr.sh`.
 
 ## Sidecar coordination contract
 
