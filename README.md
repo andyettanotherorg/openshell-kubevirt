@@ -23,17 +23,17 @@ Forks and product code stay in their upstreams; handoff notes, runbooks, and the
 
 See [`TRACKING.md`](./TRACKING.md) for verify notes from the rebase Tasks.
 
-## Seat internal registry (honr-registry tip bake)
+## CRC deploy (pin from GHCR)
 
-On the MicroShift seat, tip images are built in-cluster and pushed to **`honr-registry.default.svc:5000`** (Service `honr-registry` in `default`). Do **not** pin this seat to stale GHCR nightlies unless those layers are rebuilt from the tips below into the internal registry. Digest table + bake notes: [`TRACKING.md`](./TRACKING.md) § *seat internal registry tip images*.
+After a green nightly, pin the in-cluster controller + gateway with [`scripts/pin-crc-from-ghcr.sh`](./scripts/pin-crc-from-ghcr.sh). CRC pulls `ghcr.io/andyetanotherorg/…` digests directly. Full procedure (CLI isolation, site Hermes create, in-place disk upgrade): [`REDEPLOY.md`](./REDEPLOY.md).
 
 | Image | Tip source |
 |-------|------------|
-| `honr-registry.default.svc:5000/agent-sandbox-controller` | andyetanotherorg/agent-sandbox `@kubevirt-backend` |
-| `honr-registry.default.svc:5000/openshell-gateway` | andyetanotherorg/OpenShell `@vm-runtime-backend` |
-| `honr-registry.default.svc:5000/openshell-supervisor` | andyetanotherorg/OpenShell `@vm-runtime-backend` |
-| `honr-registry.default.svc:5000/nemoclaw-hermes` | andyetanotherorg/NemoClaw `@vm-runtime-backend` |
-| `honr-registry.default.svc:5000/hermes-sandbox-bootc` | this repo `images/hermes` + tip supervisor/nemoclaw |
+| `ghcr.io/andyetanotherorg/agent-sandbox-controller` | andyetanotherorg/agent-sandbox `@kubevirt-backend` |
+| `ghcr.io/andyetanotherorg/openshell-gateway` | andyetanotherorg/OpenShell `@vm-runtime-backend` |
+| `ghcr.io/andyetanotherorg/openshell-supervisor` | andyetanotherorg/OpenShell `@vm-runtime-backend` (baked into bootc) |
+| `ghcr.io/andyetanotherorg/nemoclaw-hermes` | andyetanotherorg/NemoClaw `@vm-runtime-backend` (baked into nemoclaw bootc) |
+| `ghcr.io/andyetanotherorg/hermes-site-kubevirt` | toolbox site layers on hermes-minimal (preferred CRC guest) |
 
 ## Nightly CI
 
@@ -68,7 +68,7 @@ gh secret set APP_PRIVATE_KEY --repo andyetanotherorg/openshell-kubevirt < /path
 `hermes-site-*` GHCR packages were first published from toolbox and may still be linked there. If `build-hermes-site` cannot push, add **openshell-kubevirt** with Write under each package’s Manage Actions access.
 ### GHCR images (amd64) — nightly CI publish path
 
-> Seat deploy should prefer **honr-registry tip digests** (above / TRACKING). The GHCR table below is the nightly workflow output path (`ghcr.io/andyetanotherorg`), not the seat pin.
+CRC pins these digests directly (`./scripts/pin-crc-from-ghcr.sh` / [`REDEPLOY.md`](./REDEPLOY.md)).
 
 | Image | Source |
 |-------|--------|
@@ -89,6 +89,4 @@ Tags: `nightly`, `YYYYMMDD`, `sha-<short>` (plus `kubevirt` on openshell-supervi
 
 ## Published images
 
-- **Seat tip bake:** `honr-registry.default.svc:5000` digests in [`TRACKING.md`](./TRACKING.md)
-- Nightly OCI layers + containerDisk: see **GHCR images** above
-- Quay mirror (optional): [`quay.io/shanemcd/hermes-sandbox-kubevirt:latest`](https://quay.io/repository/shanemcd/hermes-sandbox-kubevirt)
+Nightly OCI layers + containerDisk: see **GHCR images** above. Pin CRC with [`REDEPLOY.md`](./REDEPLOY.md).

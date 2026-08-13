@@ -95,7 +95,7 @@ oc -n openshell patch sts openshell --type=json -p="[{
 oc -n openshell delete pod openshell-0 --wait=false
 ```
 
-If CRC cannot pull GHCR, mirror into the OpenShift registry first, then pin to that ImageStream digest (same idea as the old `istag` flow in [`TRACKING.md`](./TRACKING.md)).
+CRC pulls `ghcr.io/andyetanotherorg/…` digests directly (no internal-registry copy). The same script pins **both** the gateway and the patched agent-sandbox controller (nightly builds of `vm-runtime-backend` / `kubevirt-backend`).
 
 After controller rollout, keep optional KubeVirt RBAC bound (from an agent-sandbox checkout):
 
@@ -151,14 +151,6 @@ openshell sandbox provider list hermes
 ```
 
 Use a throwaway name (e.g. `hermes-kv-proof`) if you want to avoid colliding with a restored `hermes` PVC/backup.
-
-Optional Quay mirror (personal Quay; optional):
-
-```bash
-crane copy \
-  "ghcr.io/andyetanotherorg/hermes-site-kubevirt@${DISK_DIG}" \
-  quay.io/shanemcd/hermes-site-kubevirt:latest
-```
 
 ### 2a. Upgrade disk in place (keep `/sandbox` data) — preferred when Hermes already exists
 
@@ -324,7 +316,7 @@ Also confirm Slack / Signal / inference after an in-place disk restart or recrea
 ## Notes
 
 - The VM generates a new SSH host key on every restart, so `known_hosts` entries go stale. Always pass `-oUserKnownHostsFile=/dev/null` (alongside `-oStrictHostKeyChecking=no`) to `virtctl ssh` to avoid "REMOTE HOST IDENTIFICATION HAS CHANGED" errors.
-- Nightly **gateway** is distroless (zigbuild + `bundled-z3`). Live CRC previously used a Fedora 44 wrapper for toolbox builds; distroless is the intended cluster image. If the STS fails after switch, mirror/binary-wrap as before.
+- Nightly **gateway** is distroless (zigbuild + `bundled-z3`). That is the intended cluster image.
 - Keep host `openshell-gateway.service` running for `openshell-ts`. Mask **only** `openshell-driver-kubevirt` so CRC creates go through the Sandbox CR.
 - Do not use local `tot` / kubevirt-driver endpoints or `OPENSHELL_GATEWAY_ENDPOINT` for CRC Hermes work — use gateway name `crc` or [`scripts/openshell-kubevirt`](./scripts/openshell-kubevirt).
-- Tag-only `rollout restart` can leave pods on an old digest; always set the image to a digest (or a fresh ImageStream digest).
+- Tag-only `rollout restart` can leave pods on an old digest; always pin the image to a GHCR digest (`crane digest …:nightly` or `./scripts/pin-crc-from-ghcr.sh`).
