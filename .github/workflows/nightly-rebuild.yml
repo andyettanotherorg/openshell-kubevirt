@@ -354,15 +354,14 @@ jobs:
           mise install --locked
           DOCKER_PLATFORM=linux/amd64 tasks/scripts/stage-prebuilt-binaries.sh gateway
           # Script maps IMAGE_REGISTRY + openshell/gateway → ${REGISTRY}/gateway
-          # OpenShell disables local BuildKit cache when CI=1; pass GHA scopes via extra args.
+          # OpenShell's ce_build picks podman in CI; podman rejects BuildKit
+          # type=gha cache. Rust compile is cached above via mise + rust-cache.
           IMAGE_REGISTRY="${REGISTRY}" \
           IMAGE_TAG="${TAG}" \
           DOCKER_PLATFORM=linux/amd64 \
           DOCKER_PUSH=1 \
           CI=1 \
-            tasks/scripts/docker-build-image.sh gateway \
-              --cache-from type=gha,scope=openshell-gateway \
-              --cache-to type=gha,mode=max,scope=openshell-gateway
+            tasks/scripts/docker-build-image.sh gateway
           SRC="${REGISTRY}/gateway:${TAG}"
           for t in nightly "${DATE}" "${TAG}"; do
             docker buildx imagetools create \
@@ -417,14 +416,13 @@ jobs:
           TAG="sha-${SHORT}"
           mise install --locked
           DOCKER_PLATFORM=linux/amd64 tasks/scripts/stage-prebuilt-binaries.sh supervisor
+          # Same as gateway: podman in CI cannot take type=gha; rust-cache covers compile.
           IMAGE_REGISTRY="${REGISTRY}" \
           IMAGE_TAG="${TAG}" \
           DOCKER_PLATFORM=linux/amd64 \
           DOCKER_PUSH=1 \
           CI=1 \
-            tasks/scripts/docker-build-image.sh supervisor \
-              --cache-from type=gha,scope=openshell-supervisor \
-              --cache-to type=gha,mode=max,scope=openshell-supervisor
+            tasks/scripts/docker-build-image.sh supervisor
           SRC="${REGISTRY}/supervisor:${TAG}"
           for t in nightly "${DATE}" "${TAG}" kubevirt; do
             docker buildx imagetools create \
