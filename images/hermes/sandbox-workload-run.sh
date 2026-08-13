@@ -4,6 +4,7 @@
 # provider.env if present, points TLS/proxy at the OpenShell L7 proxy, then
 # execs sandbox-entrypoint (or OPENSHELL_SANDBOX_COMMAND override).
 # Variant images symlink sandbox-entrypoint → nemoclaw-start-vm or hermes-start.sh.
+# hermes-start (minimal/site) forks gateway+dashboard — same script as combined mode.
 set -euo pipefail
 
 NETNS_FILE="${OPENSHELL_NETNS_FILE:-/run/openshell/netns}"

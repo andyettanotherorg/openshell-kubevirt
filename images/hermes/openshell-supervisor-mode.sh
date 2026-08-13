@@ -68,6 +68,8 @@ case "$cmd" in
     else
       echo "want-workload: absent"
     fi
+    echo "hermes tree:"
+    pgrep -af 'hermes-start|hermes gateway|hermes dashboard' || echo "  (none)"
     exit 0
     ;;
   combined|network) ;;
@@ -130,4 +132,4 @@ fi
 
 echo "mode=$(current_mode)"
 pgrep -af '/opt/openshell/bin/openshell-sandbox' || true
-pgrep -af 'hermes-start|hermes gateway' || true
+pgrep -af 'hermes-start|hermes gateway|hermes dashboard' || true

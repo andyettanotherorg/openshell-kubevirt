@@ -14,10 +14,8 @@ and layer on the **hermes-minimal** bootc image.
 Both images symlink `/usr/local/bin/sandbox-entrypoint` to the variant
 entrypoint. Shared scripts default `OPENSHELL_SANDBOX_COMMAND` to that path.
 The nemoclaw guest still uses `nemoclaw-start-vm` (gateway only); PTY
-`sitecustomize` + `/dev/pts` remount are shared so Landlock-safe PTYs work if
-a dashboard is started. Nested gateway+dashboard is **hermes-minimal /
-site only** (process supervisor — not nested systemd; Landlock denies
-user-manager cgroups).
+`sitecustomize` + `/dev/pts` remount are shared. Gateway + dashboard via
+`hermes-start.sh` is **hermes-minimal / site only**.
 
 ```bash
 cp -n hermes.env.example hermes.env
@@ -42,10 +40,17 @@ nemoclaw variant takes Hermes from the `nemoclaw-hermes` image.
 
 ## Supervisor modes (runtime switch)
 
-| Mode | How | Hermes | Landlock |
-|------|-----|--------|----------|
-| **combined** (default) | `openshell-sandbox` `--mode network,process` | child of supervisor | yes |
-| **network** | `openshell-sandbox` `--mode network` + `sandbox-workload` | sibling in sandbox netns | no |
+Same Hermes entrypoint in both modes (`sandbox-entrypoint` → `hermes-start.sh`
+on minimal/site). Only who launches it changes:
+
+| Mode | How | Who execs `hermes-start` | Landlock on Hermes |
+|------|-----|--------------------------|--------------------|
+| **combined** (default) | `openshell-sandbox` `--mode network,process` | OpenShell process leaf | yes |
+| **network** | `openshell-sandbox` `--mode network` + `sandbox-workload` | `sandbox-workload` after `nsenter` + `setpriv` | no |
+
+`hermes-start` always forks gateway + dashboard in-process (no nested
+`systemd --user` — that breaks under combined Landlock cgroups; linger
+`user@UID` is the wrong netns).
 
 ```bash
 # On the guest (root):
@@ -86,18 +91,17 @@ if needed.
 
 ## Dashboard (hermes-minimal / site)
 
-`hermes-start.sh` keeps OpenShell’s Landlock/netns tree and runs:
+`hermes-start.sh` is the dual-mode workload: OpenShell (combined) or
+`sandbox-workload` (network) execs it; it forks:
 
 | Process | Role |
 |---------|------|
 | `hermes gateway run` | Messaging gateway |
 | `hermes dashboard` | Web UI on `127.0.0.1:9119` with `HERMES_TUI_DIR=/opt/hermes/ui-tui` |
 
-Proxy/TLS env from OpenShell is inherited by both children (and snapshotted
-to `/sandbox/.hermes/runtime/workload.env` for debugging). Optional
-`hermes-*.service` user units ship in the image for experiments, but the
-default entrypoint does **not** nest `systemd --user` — combined-mode
-Landlock cannot allocate that manager’s cgroups.
+Children inherit proxy/TLS env (OpenShell-injected in combined; set by
+`sandbox-workload-run.sh` in network). Snapshot:
+`/sandbox/.hermes/runtime/workload.env`.
 
 | Extra | Role |
 |-------|------|

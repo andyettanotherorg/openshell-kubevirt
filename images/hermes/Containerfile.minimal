@@ -167,11 +167,9 @@ COPY SOUL.md /sandbox/.hermes/SOUL.md
 COPY hermes.env /tmp/hermes.env
 COPY hermes-config.py /tmp/hermes-config.py
 COPY hermes-start.sh /usr/local/bin/hermes-start.sh
-COPY hermes-gateway.service hermes-dashboard.service hermes.target \
-      /usr/lib/systemd/user/
 # PTY workaround for OpenShell Landlock (dashboard Chat): see sitecustomize.py
 # Install into the Hermes venv so any `hermes` process picks it up without
-# relying on PYTHONPATH; keep the pythonpath copy for explicit unit env.
+# relying on PYTHONPATH; keep the pythonpath copy for explicit env.
 RUN mkdir -p /usr/local/lib/hermes/pythonpath
 COPY sitecustomize.py /usr/local/lib/hermes/pythonpath/sitecustomize.py
 RUN SITE_PKGS="$(/opt/hermes/.venv/bin/python -c 'import site; print(site.getsitepackages()[0])')" && \

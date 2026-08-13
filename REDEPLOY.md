@@ -296,7 +296,12 @@ virtctl ssh root@vmi/hermes -n default -i ~/.ssh/id_rsa \
 
 Do **not** set `SUPERVISOR_MODE=network` without `sandbox-workload` — Hermes will not start and `exec` will hang.
 
-Guest entrypoint is `/usr/local/bin/sandbox-entrypoint` (symlink to `nemoclaw-start-vm` or `hermes-start.sh` depending on the image). Gateway `sandbox_command` / create `--env OPENSHELL_SANDBOX_COMMAND=…` can override; prefer leaving it empty so the image owns the default.
+On **hermes-minimal / site**, both modes exec the same
+`/usr/local/bin/sandbox-entrypoint` → `hermes-start.sh` (gateway + dashboard
+children). Combined: OpenShell is the parent (Landlock). Network:
+`sandbox-workload` nsenter + setpriv, then the same script (no Landlock).
+Gateway `sandbox_command` / create `--env OPENSHELL_SANDBOX_COMMAND=…` can
+override; prefer leaving it empty so the image owns the default.
 
 ## 4. Smoke
 
@@ -328,12 +333,11 @@ CLI form (combined mode): `openshell sandbox exec whoami` — sandbox name is `-
 
 ### Dashboard (site / hermes-minimal)
 
-Guest image runs `hermes gateway` + `hermes dashboard` as children of
-`hermes-start.sh` inside the OpenShell Landlock/netns tree (not nested
-`systemd --user` — that fails under Landlock cgroup restrictions). Children
-inherit OpenShell proxy/TLS env so dashboard chat can reach `inference.local`
-via `HTTPS_PROXY`. PTY allocation uses `/dev/pts/ptmx` (`sitecustomize` +
-pts remount) because Landlock denies `/dev/ptmx`. After Ready:
+`hermes-start.sh` runs under **either** supervisor mode (combined Landlock
+child, or network-mode `sandbox-workload` sibling) and forks `hermes gateway`
++ `hermes dashboard`. Children inherit proxy/TLS so chat can reach
+`inference.local` via `HTTPS_PROXY`. PTY allocation uses `/dev/pts/ptmx`
+(`sitecustomize` + pts remount). After Ready:
 
 ```bash
 export OPENSHELL_GATEWAY=crc
