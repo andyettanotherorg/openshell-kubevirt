@@ -2,6 +2,29 @@
 
 > **Read this first if you have no context.** This is the living handoff for running Hermes (NemoClaw) as a KubeVirt VM on CRC via OpenShell’s k8s driver + agent-sandbox `runtimeBackend: VirtualMachine`. **Home of this doc:** [`andyettanotherorg/openshell-kubevirt`](https://github.com/andyettanotherorg/openshell-kubevirt). Last updated **2026-08-13**.
 
+## Current state (2026-08-13) — nightly-rebuild green on `ghcr.io/andyettanotherorg`
+
+Proof `workflow_dispatch` of [`.github/workflows/nightly-rebuild.yml`](./.github/workflows/nightly-rebuild.yml) on `honr/card-55` completed **success** (minimal green subset: `rebase=false`, `push_images=true`, `build_container_disk=false`, `build_site_hermes=false`).
+
+**Green run:** https://github.com/andyettanotherorg/openshell-kubevirt/actions/runs/31667054629
+
+**Fix that unblocked `build-nemoclaw-hermes`:** stop overriding `BASE_IMAGE` with NVIDIA `:latest` (403/missing); use the digest pin already in `andyettanotherorg/NemoClaw` `agents/hermes/Dockerfile`.
+
+**Jobs in scope:** meta + rebases (skip push) + `build-agent-sandbox` + `build-openshell-gateway` + `build-openshell-supervisor` + `build-nemoclaw-hermes` + `build-hermes-bootc` + `build-hermes-minimal-bootc` all **success**. Skipped (by design): containerDisk + site Hermes (multi-hour bib).
+
+**Published image refs** (`ghcr.io/andyettanotherorg/…`; tags from workflow; digests not readable from this seat — GHCR egress denied):
+
+| Image | Tags | Source tip |
+|-------|------|------------|
+| `agent-sandbox-controller` | `nightly`, `20260813`, `sha-a21b574` | `andyettanotherorg/agent-sandbox` `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` |
+| `openshell-gateway` | `nightly`, `20260813`, `sha-1c79e1d` | `andyettanotherorg/OpenShell` `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` |
+| `openshell-supervisor` | `nightly`, `20260813`, `sha-1c79e1d`, `kubevirt` | same OpenShell tip |
+| `nemoclaw-hermes` | `nightly`, `20260813`, `sha-832c188`, `kubevirt` | `andyettanotherorg/NemoClaw` `vm-runtime-backend` @ `832c188792a2c58be72246d1eaafae3d09eef582` |
+| `hermes-sandbox-bootc` | `nightly`, `20260813`, `sha-98320d8` | this repo `images/hermes/Containerfile.nemoclaw` @ `98320d8` + tip supervisor/nemoclaw |
+| `hermes-minimal-bootc` | `nightly`, `20260813`, `sha-98320d8` | this repo `images/hermes/Containerfile.minimal` @ `98320d8` + tip supervisor |
+
+Not published this pass: `hermes-sandbox-kubevirt`, `hermes-minimal-kubevirt`, `hermes-site-*` (inputs off).
+
 ## Current state (2026-08-13) — MicroShift seat deploy + smoke (honr-registry tips)
 
 Deployed agent-sandbox controller + OpenShell gateway (VM backend) onto the seat MicroShift cluster from **internal registry digests** only (not `ghcr.io/andyettanotherorg`, not shanemcd GHCR). Fork `main` / upstream untouched.

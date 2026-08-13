@@ -13,15 +13,15 @@ unset OPENSHELL_GATEWAY_ENDPOINT
 
 | GHCR image | CRC use |
 |------------|---------|
-| `ghcr.io/shanemcd/agent-sandbox-controller:nightly` | Deploy `agent-sandbox-system/agent-sandbox-controller` |
-| `ghcr.io/shanemcd/openshell-gateway:nightly` | STS `openshell/openshell` |
-| `ghcr.io/shanemcd/openshell-supervisor:nightly` | Intermediate only (baked into bootc) |
-| `ghcr.io/shanemcd/nemoclaw-hermes:nightly` | Intermediate only (baked into nemoclaw bootc) |
-| `ghcr.io/shanemcd/hermes-sandbox-bootc:nightly` | NemoClaw variant OS image (input to containerDisk) |
-| `ghcr.io/shanemcd/hermes-sandbox-kubevirt:nightly` | Default Sandbox `containers[0].image` (nemoclaw containerDisk) |
-| `ghcr.io/shanemcd/hermes-minimal-bootc:nightly` | Hermes-minimal OS image (no NemoClaw) |
-| `ghcr.io/shanemcd/hermes-minimal-kubevirt:nightly` | Optional Sandbox image (minimal containerDisk) |
-| `ghcr.io/shanemcd/hermes-site-kubevirt:nightly` | Site containerDisk (toolbox layers on hermes-minimal bootc) |
+| `ghcr.io/andyettanotherorg/agent-sandbox-controller:nightly` | Deploy `agent-sandbox-system/agent-sandbox-controller` |
+| `ghcr.io/andyettanotherorg/openshell-gateway:nightly` | STS `openshell/openshell` |
+| `ghcr.io/andyettanotherorg/openshell-supervisor:nightly` | Intermediate only (baked into bootc) |
+| `ghcr.io/andyettanotherorg/nemoclaw-hermes:nightly` | Intermediate only (baked into nemoclaw bootc) |
+| `ghcr.io/andyettanotherorg/hermes-sandbox-bootc:nightly` | NemoClaw variant OS image (input to containerDisk) |
+| `ghcr.io/andyettanotherorg/hermes-sandbox-kubevirt:nightly` | Default Sandbox `containers[0].image` (nemoclaw containerDisk) |
+| `ghcr.io/andyettanotherorg/hermes-minimal-bootc:nightly` | Hermes-minimal OS image (no NemoClaw) |
+| `ghcr.io/andyettanotherorg/hermes-minimal-kubevirt:nightly` | Optional Sandbox image (minimal containerDisk) |
+| `ghcr.io/andyettanotherorg/hermes-site-kubevirt:nightly` | Site containerDisk (toolbox layers on hermes-minimal bootc) |
 
 Tags also include `YYYYMMDD` and `sha-<short>`. Prefer **digest** pins over moving tags.
 
@@ -36,16 +36,16 @@ TAG=20260712 ./scripts/pin-crc-from-ghcr.sh
 Manual equivalent:
 
 ```bash
-CTRL_DIG=$(crane digest ghcr.io/shanemcd/agent-sandbox-controller:nightly)
-GW_DIG=$(crane digest ghcr.io/shanemcd/openshell-gateway:nightly)
+CTRL_DIG=$(crane digest ghcr.io/andyettanotherorg/agent-sandbox-controller:nightly)
+GW_DIG=$(crane digest ghcr.io/andyettanotherorg/openshell-gateway:nightly)
 
 oc -n agent-sandbox-system set image deploy/agent-sandbox-controller \
-  "*=ghcr.io/shanemcd/agent-sandbox-controller@${CTRL_DIG}"
+  "*=ghcr.io/andyettanotherorg/agent-sandbox-controller@${CTRL_DIG}"
 
 oc -n openshell patch sts openshell --type=json -p="[{
   \"op\":\"replace\",
   \"path\":\"/spec/template/spec/containers/0/image\",
-  \"value\":\"ghcr.io/shanemcd/openshell-gateway@${GW_DIG}\"
+  \"value\":\"ghcr.io/andyettanotherorg/openshell-gateway@${GW_DIG}\"
 }]"
 oc -n openshell delete pod openshell-0 --wait=false
 ```
@@ -64,25 +64,25 @@ Nightly publishes:
 
 | Image | Use |
 |-------|-----|
-| `ghcr.io/shanemcd/hermes-sandbox-kubevirt:nightly` | NemoClaw guest (public nemoclaw guest) |
-| `ghcr.io/shanemcd/hermes-minimal-kubevirt:nightly` | Hermes-minimal guest (no config seals / MCP integrity) |
-| `ghcr.io/shanemcd/hermes-site-kubevirt:nightly` | Site layers (`jirahhh`, `gh`, guest docs) on hermes-minimal bootc |
+| `ghcr.io/andyettanotherorg/hermes-sandbox-kubevirt:nightly` | NemoClaw guest (public nemoclaw guest) |
+| `ghcr.io/andyettanotherorg/hermes-minimal-kubevirt:nightly` | Hermes-minimal guest (no config seals / MCP integrity) |
+| `ghcr.io/andyettanotherorg/hermes-site-kubevirt:nightly` | Site layers (`jirahhh`, `gh`, guest docs) on hermes-minimal bootc |
 
 ```bash
-DISK_DIG=$(crane digest ghcr.io/shanemcd/hermes-sandbox-kubevirt:nightly)
+DISK_DIG=$(crane digest ghcr.io/andyettanotherorg/hermes-sandbox-kubevirt:nightly)
 # or minimal:
-# DISK_DIG=$(crane digest ghcr.io/shanemcd/hermes-minimal-kubevirt:nightly)
+# DISK_DIG=$(crane digest ghcr.io/andyettanotherorg/hermes-minimal-kubevirt:nightly)
 # or site:
-# DISK_DIG=$(crane digest ghcr.io/shanemcd/hermes-site-kubevirt:nightly)
-IMAGE="ghcr.io/shanemcd/hermes-sandbox-kubevirt@${DISK_DIG}"
-# IMAGE="ghcr.io/shanemcd/hermes-minimal-kubevirt@${DISK_DIG}"
+# DISK_DIG=$(crane digest ghcr.io/andyettanotherorg/hermes-site-kubevirt:nightly)
+IMAGE="ghcr.io/andyettanotherorg/hermes-sandbox-kubevirt@${DISK_DIG}"
+# IMAGE="ghcr.io/andyettanotherorg/hermes-minimal-kubevirt@${DISK_DIG}"
 ```
 
-Optional Quay mirror:
+Optional Quay mirror (personal Quay; optional):
 
 ```bash
 crane copy \
-  "ghcr.io/shanemcd/hermes-sandbox-kubevirt@${DISK_DIG}" \
+  "ghcr.io/andyettanotherorg/hermes-sandbox-kubevirt@${DISK_DIG}" \
   quay.io/shanemcd/hermes-sandbox-kubevirt:latest
 ```
 
