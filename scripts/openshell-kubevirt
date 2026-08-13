@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Thin host wrapper: force the CRC/MicroShift OpenShell gateway without
+# changing the default openshell-ts / local podman gateway.
+#
+# Install (optional):
+#   ln -sf "$PWD/scripts/openshell-kubevirt" ~/.local/bin/openshell-kubevirt
+#
+# Requires: `openshell` on PATH, and a registered gateway named `crc`
+# (see REDEPLOY.md § Host CLI isolation).
+set -euo pipefail
+
+export OPENSHELL_GATEWAY=crc
+unset OPENSHELL_GATEWAY_ENDPOINT || true
+
+exec openshell "$@"

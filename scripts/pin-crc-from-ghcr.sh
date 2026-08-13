@@ -30,7 +30,8 @@ oc -n openshell patch sts openshell --type=json -p="[{
 oc -n openshell delete pod openshell-0 --wait=false
 oc -n openshell rollout status sts/openshell --timeout=300s
 
-echo "Done. Smoke with:"
+echo "Done. Smoke with (does not touch host openshell-ts / openshell-gateway):"
 echo "  export OPENSHELL_GATEWAY=crc"
 echo "  unset OPENSHELL_GATEWAY_ENDPOINT"
 echo "  openshell gateway info && openshell sandbox list"
+echo "  # or: ./scripts/openshell-kubevirt gateway info"
