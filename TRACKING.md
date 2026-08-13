@@ -179,7 +179,7 @@ Bootc image ([`images/hermes/Containerfile.nemoclaw`](./images/hermes/Containerf
 | `openshell sandbox exec` | **Working** — e.g. `openshell sandbox exec whoami` → `sandbox` (relay/session path OK) |
 | PVC `workspace-hermes` | Bound; virtio serial `workspace` |
 | ContainerDisk | CRC IS `openshell-sandboxes/hermes-sandbox-kubevirt:latest` **and** Quay `quay.io/shanemcd/hermes-sandbox-kubevirt:latest` (`@sha256:59d8793f9d3641291028ce0a6a5e4b77ae1b552a0aeead5badd246a926f04f7c`, also tagged `20260711`) |
-| Host CLI | **`export OPENSHELL_GATEWAY=crc`** only — never local `tot` quadlets, never `OPENSHELL_GATEWAY_ENDPOINT` override for CRC |
+| Host CLI | **`export OPENSHELL_GATEWAY=crc`** (or [`scripts/openshell-kubevirt`](./scripts/openshell-kubevirt)) — leave host `openshell-ts` / `openshell-gateway` alone; never `OPENSHELL_GATEWAY_ENDPOINT` for CRC |
 
 ### TLS notes (do not re-litigate)
 
@@ -393,12 +393,16 @@ openshell sandbox list
 ```
 
 **Do not use `oc port-forward` for CRC** unless the Route is broken. Port-forward to `:18080` was a temporary debug workaround; the OpenShift Route already exposes the gateway.
-**Local quadlets** live at `~/.config/containers/systemd/openshell-{gateway,driver-kubevirt}.container` (`WantedBy=default.target`). Mask when using CRC:
+
+**Host gateway shape (2026-08-13):** daily driver is host `openshell-ts` → local podman `openshell-gateway` (`:17670`). **Do not** stop/mask `openshell-gateway.service` — CRC Hermes verify uses the **in-cluster** STS via registered gateway `crc` (`OPENSHELL_GATEWAY=crc` or [`scripts/openshell-kubevirt`](./scripts/openshell-kubevirt)). Mask **only** the kubevirt driver so creates do not bypass the Sandbox CR:
 
 ```bash
-systemctl --user stop openshell-gateway.service openshell-driver-kubevirt.service
-systemctl --user mask openshell-gateway.service openshell-driver-kubevirt.service
+systemctl --user stop openshell-driver-kubevirt.service 2>/dev/null || true
+systemctl --user mask openshell-driver-kubevirt.service
+# Keep openshell-gateway.service running for openshell-ts
 ```
+
+See [`REDEPLOY.md`](./REDEPLOY.md) § *Deployment shape*.
 
 ## Root cause analysis (2026-07-10)
 
@@ -615,7 +619,7 @@ CRDs regenerated with `make fix-go-generate` (conversion webhook via `sort-crd-v
 | Agent-sandbox controller | `agent-sandbox-system` | `…/agent-sandbox-controller:kubevirt` | Tip has virtio metadata + optional kubevirt RBAC — **redeploy + bind kubevirt Role** if not already |
 | OpenShell gateway | `openshell` | `…/openshell-gateway@sha256:f0a8e2a7…` (**Fedora 44** base, bundled-z3) | STS image **digest-pinned**; `workspace_persistence = true` |
 | Host CLI gateway | (registration `crc`) | Route `openshell-openshell.apps-crc.testing` | mTLS; `is_remote: true`; `OPENSHELL_GATEWAY=crc` |
-| Local quadlets | (host systemd) | `openshell-gateway:kubevirt` + kubevirt driver | **Masked** — do not run alongside CRC Hermes work |
+| Local quadlets | (host systemd) | `openshell-gateway` (daily `openshell-ts`) + optional kubevirt driver | Keep **gateway**; mask **driver only** for CRC Hermes (see REDEPLOY) |
 | Live supervisor binary | (on VM) | `/opt/openshell/bin/openshell-sandbox` | Baked sidecar binary (no `/tmp` patch) |
 | Hermes containerDisk (CRC) | `openshell-sandboxes` | `hermes-sandbox-kubevirt:latest` | Rebuilt 2026-07-11 night |
 | Hermes containerDisk (Quay) | — | `quay.io/shanemcd/hermes-sandbox-kubevirt:latest` | `@sha256:59d8793f…` (= CRC); also tag `20260711` |

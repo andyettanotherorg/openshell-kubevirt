@@ -1,13 +1,53 @@
 # Redeploy CRC from nightly GHCR
 
-After [Nightly rebase and rebuild](https://github.com/andyetanotherorg/openshell-kubevirt/actions/workflows/nightly-rebuild.yml) is green, use the published OCI images on CRC.
+After [Nightly rebase and rebuild](https://github.com/andyetanotherorg/openshell-kubevirt/actions/workflows/nightly-rebuild.yml) is green, use the published OCI images on CRC (MicroShift).
 
-Always talk to the in-cluster gateway:
+## Deployment shape (keep the host gateway)
+
+| Stack | Role |
+|-------|------|
+| Host `openshell-ts` → local podman `openshell-gateway` (`:17670`) | **Daily driver** — leave running; do **not** replace or mask |
+| CRC/MicroShift `openshell` STS + `agent-sandbox-controller` | **KubeVirt / Hermes verify** — pin from GHCR nightlies |
+| Host CLI | Default stays `openshell-ts`. For CRC work use `OPENSHELL_GATEWAY=crc` or the [`scripts/openshell-kubevirt`](./scripts/openshell-kubevirt) wrapper |
+
+Do **not** point CRC Hermes work at local `openshell-driver-kubevirt` (bypasses Sandbox CR). Mask **only** that unit if it is enabled:
 
 ```bash
+systemctl --user stop openshell-driver-kubevirt.service 2>/dev/null || true
+systemctl --user mask openshell-driver-kubevirt.service
+# Keep openshell-gateway.service running for openshell-ts
+```
+
+### Host CLI isolation
+
+```bash
+# Preferred for CRC sessions (does not change the default gateway):
 export OPENSHELL_GATEWAY=crc
 unset OPENSHELL_GATEWAY_ENDPOINT
+
+# Or install a dedicated binary name:
+#   ln -sf "$PWD/scripts/openshell-kubevirt" ~/.local/bin/openshell-kubevirt
+#   openshell-kubevirt gateway info
 ```
+
+Register the CRC gateway once (mTLS client certs must already match the in-cluster server CA — typically from the Helm/`openshell-client-tls` material). Endpoint is the OpenShift Route, **TLS passthrough**:
+
+```bash
+# Ensure a passthrough Route exists (CRC MicroShift often uses apps.crc.testing):
+oc -n openshell get route openshell 2>/dev/null || \
+  oc -n openshell create route passthrough openshell --service=openshell --port=grpc
+
+oc -n openshell get route openshell -o jsonpath='{.spec.host}{"\n"}'
+# Example: openshell-openshell.apps.crc.testing
+
+openshell gateway add --name crc --remote "$(whoami)@127.0.0.1" \
+  "https://openshell-openshell.apps.crc.testing"
+# Adjust host to match `oc get route`. If mTLS files already live under
+# ~/.config/openshell/gateways/crc/, prefer re-using that registration over
+# re-adding.
+```
+
+Never set `OPENSHELL_GATEWAY_ENDPOINT` for CRC Hermes — it overrides gateway metadata and historically pointed at the host kubevirt driver.
 
 ## Artifact map
 
@@ -18,19 +58,24 @@ unset OPENSHELL_GATEWAY_ENDPOINT
 | `ghcr.io/andyetanotherorg/openshell-supervisor:nightly` | Intermediate only (baked into bootc) |
 | `ghcr.io/andyetanotherorg/nemoclaw-hermes:nightly` | Intermediate only (baked into nemoclaw bootc) |
 | `ghcr.io/andyetanotherorg/hermes-sandbox-bootc:nightly` | NemoClaw variant OS image (input to containerDisk) |
-| `ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt:nightly` | Default Sandbox `containers[0].image` (nemoclaw containerDisk) |
+| `ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt:nightly` | NemoClaw containerDisk (variant testing) |
 | `ghcr.io/andyetanotherorg/hermes-minimal-bootc:nightly` | Hermes-minimal OS image (no NemoClaw) |
-| `ghcr.io/andyetanotherorg/hermes-minimal-kubevirt:nightly` | Optional Sandbox image (minimal containerDisk) |
-| `ghcr.io/andyetanotherorg/hermes-site-kubevirt:nightly` | Site containerDisk (toolbox layers on hermes-minimal bootc) |
+| `ghcr.io/andyetanotherorg/hermes-minimal-kubevirt:nightly` | Minimal containerDisk (variant testing) |
+| `ghcr.io/andyetanotherorg/hermes-site-kubevirt:nightly` | **Preferred CRC site guest** (toolbox layers on hermes-minimal bootc) |
 
 Tags also include `YYYYMMDD` and `sha-<short>`. Prefer **digest** pins over moving tags.
 
+For CRC site verify (toolbox layers: `jirahhh`, `gh`, guest docs), prefer **`hermes-site-kubevirt`**. Use nemoclaw/minimal disks only when testing those variants.
+
 ## 1. Controller + gateway (script)
 
+Pin **in-cluster** images only — this does not touch the host podman gateway.
+
 ```bash
+export KUBECONFIG=~/.crc/machines/crc/kubeconfig
 ./scripts/pin-crc-from-ghcr.sh
 # or pin a date tag:
-TAG=20260712 ./scripts/pin-crc-from-ghcr.sh
+TAG=20260813 ./scripts/pin-crc-from-ghcr.sh
 ```
 
 Manual equivalent:
@@ -64,29 +109,58 @@ Nightly publishes:
 
 | Image | Use |
 |-------|-----|
+| `ghcr.io/andyetanotherorg/hermes-site-kubevirt:nightly` | **Preferred CRC site guest** (toolbox layers on hermes-minimal bootc) |
 | `ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt:nightly` | NemoClaw guest (public nemoclaw guest) |
 | `ghcr.io/andyetanotherorg/hermes-minimal-kubevirt:nightly` | Hermes-minimal guest (no config seals / MCP integrity) |
-| `ghcr.io/andyetanotherorg/hermes-site-kubevirt:nightly` | Site layers (`jirahhh`, `gh`, guest docs) on hermes-minimal bootc |
 
 ```bash
-DISK_DIG=$(crane digest ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt:nightly)
-# or minimal:
+# Site (preferred for CRC verify):
+DISK_DIG=$(crane digest ghcr.io/andyetanotherorg/hermes-site-kubevirt:nightly)
+IMAGE="ghcr.io/andyetanotherorg/hermes-site-kubevirt@${DISK_DIG}"
+
+# Alternatives:
+# DISK_DIG=$(crane digest ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt:nightly)
 # DISK_DIG=$(crane digest ghcr.io/andyetanotherorg/hermes-minimal-kubevirt:nightly)
-# or site:
-# DISK_DIG=$(crane digest ghcr.io/andyetanotherorg/hermes-site-kubevirt:nightly)
-IMAGE="ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt@${DISK_DIG}"
-# IMAGE="ghcr.io/andyetanotherorg/hermes-minimal-kubevirt@${DISK_DIG}"
+# IMAGE="ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt@${DISK_DIG}"
 ```
+
+`--from` must be a **containerDisk** (`*-kubevirt`), not a bootc OCI (`*-bootc`).
+
+### 2-create. Fresh site sandbox (no existing Hermes)
+
+Policy lives in public [`shanemcd/toolbox`](https://github.com/shanemcd/toolbox) `openshell-kubevirt/policy.yaml`.
+
+```bash
+export OPENSHELL_GATEWAY=crc   # or: openshell-kubevirt …
+unset OPENSHELL_GATEWAY_ENDPOINT
+
+POLICY="${TOOLBOX:-$HOME/github/shanemcd/toolbox}/openshell-kubevirt/policy.yaml"
+
+openshell sandbox create \
+  --name hermes \
+  --from "$IMAGE" \
+  --policy "$POLICY" \
+  --provider vertex-prod --provider slack --provider github \
+  --provider atlassian --provider gws --provider gitlab \
+  -- /usr/local/bin/nemoclaw-start-vm
+
+for p in github slack vertex-prod atlassian gws gitlab; do
+  openshell sandbox provider attach hermes "$p" 2>/dev/null || true
+done
+openshell sandbox provider list hermes
+```
+
+Use a throwaway name (e.g. `hermes-kv-proof`) if you want to avoid colliding with a restored `hermes` PVC/backup.
 
 Optional Quay mirror (personal Quay; optional):
 
 ```bash
 crane copy \
-  "ghcr.io/andyetanotherorg/hermes-sandbox-kubevirt@${DISK_DIG}" \
-  quay.io/shanemcd/hermes-sandbox-kubevirt:latest
+  "ghcr.io/andyetanotherorg/hermes-site-kubevirt@${DISK_DIG}" \
+  quay.io/shanemcd/hermes-site-kubevirt:latest
 ```
 
-### 2a. Upgrade disk in place (keep `/sandbox` data) — preferred
+### 2a. Upgrade disk in place (keep `/sandbox` data) — preferred when Hermes already exists
 
 Hermes agent state lives on PVC `workspace-hermes` mounted at `/sandbox`. That claim is owned by the Sandbox CR, so **`openshell sandbox delete` wipes it**. To change only the OS/containerDisk:
 
@@ -189,16 +263,19 @@ That omits VCT and emits the PVC volume + `/sandbox` mount. Sandbox delete does 
 
 Provider links are **per-sandbox** and are wiped on **delete/recreate**. Inference can still work via the OpenShell inference bundle without an attach, but GitHub/Slack/Atlassian env rewrite will not. In-place disk upgrades (§2a) do **not** clear attaches.
 
-Always attach the full CRC set (skip `discord` — image disables that platform):
+Always attach the full CRC site set (skip `discord` — image disables that platform):
 
 ```bash
-for p in github slack vertex-prod atlassian; do
+export OPENSHELL_GATEWAY=crc   # or: openshell-kubevirt …
+unset OPENSHELL_GATEWAY_ENDPOINT
+
+for p in github slack vertex-prod atlassian gws gitlab; do
   openshell sandbox provider attach hermes "$p"
 done
 openshell sandbox provider list hermes
 ```
 
-Prefer the same set on create when the CLI supports it (`--provider github --provider slack --provider vertex-prod --provider atlassian`), then still run `provider list` and attach any that are missing.
+Prefer the same set on create (`--provider …` as in §2-create), then still run `provider list` and attach any that are missing.
 
 ## 3b. Supervisor mode (combined vs network-only)
 
@@ -221,9 +298,13 @@ Guest entrypoint is `/usr/local/bin/sandbox-entrypoint` (symlink to `nemoclaw-st
 ## 4. Smoke
 
 ```bash
+export OPENSHELL_GATEWAY=crc   # or: openshell-kubevirt …
+unset OPENSHELL_GATEWAY_ENDPOINT
+
 openshell gateway info
 openshell sandbox list
-openshell sandbox provider list hermes   # expect: github, slack, vertex-prod, atlassian
+openshell sandbox provider list hermes
+# expect: github, slack, vertex-prod, atlassian, gws, gitlab
 ```
 
 `openshell sandbox exec` only works when the supervisor runs in **combined** mode (`--mode network,process`). In **network-only** mode the supervisor does not proxy process execution, so use `virtctl ssh` instead:
@@ -244,5 +325,6 @@ Also confirm Slack / Signal / inference after an in-place disk restart or recrea
 
 - The VM generates a new SSH host key on every restart, so `known_hosts` entries go stale. Always pass `-oUserKnownHostsFile=/dev/null` (alongside `-oStrictHostKeyChecking=no`) to `virtctl ssh` to avoid "REMOTE HOST IDENTIFICATION HAS CHANGED" errors.
 - Nightly **gateway** is distroless (zigbuild + `bundled-z3`). Live CRC previously used a Fedora 44 wrapper for toolbox builds; distroless is the intended cluster image. If the STS fails after switch, mirror/binary-wrap as before.
-- Do not use local `tot` quadlets or `OPENSHELL_GATEWAY_ENDPOINT` for CRC Hermes work.
+- Keep host `openshell-gateway.service` running for `openshell-ts`. Mask **only** `openshell-driver-kubevirt` so CRC creates go through the Sandbox CR.
+- Do not use local `tot` / kubevirt-driver endpoints or `OPENSHELL_GATEWAY_ENDPOINT` for CRC Hermes work — use gateway name `crc` or [`scripts/openshell-kubevirt`](./scripts/openshell-kubevirt).
 - Tag-only `rollout restart` can leave pods on an old digest; always set the image to a digest (or a fresh ImageStream digest).

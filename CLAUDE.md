@@ -46,13 +46,15 @@ Bootc → qcow2 containerDisk via `bootc-image-builder` (CI or manually). Final 
 
 ## Testing
 
-No automated test suite. Testing is manual against a CRC (CodeReady Containers) cluster:
+No automated test suite. Testing is manual against a CRC (CodeReady Containers / MicroShift) cluster. Leave the host `openshell-ts` gateway alone; target CRC with `OPENSHELL_GATEWAY=crc` or `scripts/openshell-kubevirt`:
 
 ```bash
+export OPENSHELL_GATEWAY=crc
+unset OPENSHELL_GATEWAY_ENDPOINT
 openshell gateway info
 openshell sandbox list
 openshell sandbox exec whoami        # expect: sandbox (combined mode only)
-openshell sandbox provider list hermes   # expect: github, slack, vertex-prod, atlassian
+openshell sandbox provider list hermes
 ```
 
 ## CI/CD
@@ -65,7 +67,7 @@ Required repo settings: variable `APP_CLIENT_ID`, secret `APP_PRIVATE_KEY`.
 
 ## CRC deployment
 
-Use `./scripts/pin-crc-from-ghcr.sh` to pin controller + gateway to nightly digests. For Hermes VM disk upgrades, prefer in-place patching (keeps PVC data) over delete/recreate. Full procedure in `REDEPLOY.md`.
+Use `./scripts/pin-crc-from-ghcr.sh` to pin **in-cluster** controller + gateway to nightly digests (does not touch the host podman gateway). Prefer site guest `hermes-site-kubevirt` for CRC verify. For Hermes VM disk upgrades, prefer in-place patching (keeps PVC data) over delete/recreate. Full procedure in `REDEPLOY.md`.
 
 ## Architecture: guest boot sequence
 

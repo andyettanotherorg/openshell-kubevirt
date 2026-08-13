@@ -8,7 +8,7 @@ Forks and product code stay in their upstreams; handoff notes, runbooks, and the
 
 - **[`AGENT-SANDBOX-VM.md`](./AGENT-SANDBOX-VM.md)** — piece-by-piece demo of the agent-sandbox `VirtualMachine` backend only (metadata, PVCs, Secret disks, RBAC).
 - **[`TRACKING.md`](./TRACKING.md)** — living CRC handoff for the full Hermes / OpenShell stack (branches, redeploy gotchas, next actions).
-- **[`REDEPLOY.md`](./REDEPLOY.md)** — pin CRC controller/gateway from nightly GHCR; **upgrade Hermes disk in place** (keep PVC) or recreate; **always re-attach providers** after delete/recreate.
+- **[`REDEPLOY.md`](./REDEPLOY.md)** — CRC verify shape (leave host `openshell-ts` alone; `OPENSHELL_GATEWAY=crc` / [`scripts/openshell-kubevirt`](./scripts/openshell-kubevirt)); pin in-cluster images from nightly GHCR; prefer **`hermes-site-kubevirt`**; in-place disk upgrade (keep PVC) or recreate; re-attach providers after delete/recreate.
 - **[`images/hermes/`](./images/hermes/)** — dual Containerfiles + guest bootstrap for nemoclaw and hermes-minimal bootc / containerDisk images.
 - **[`images/hermes/OPENSHELL-POLICY.md`](./images/hermes/OPENSHELL-POLICY.md)** — Hermes instructions: view/diagnose/update OpenShell policy entries (includes always-attach provider set).
 - **[`signal/`](./signal/)** — in-cluster signal-cli for Hermes (`./signal/link.sh`).
