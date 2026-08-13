@@ -1,6 +1,54 @@
 # KubeVirt VM Hermes: Handoff + Bake Results
 
-> **Read this first if you have no context.** This is the living handoff for running Hermes (NemoClaw) as a KubeVirt VM on CRC via OpenShell’s k8s driver + agent-sandbox `runtimeBackend: VirtualMachine`. **Home of this doc:** [`andyettanotherorg/openshell-kubevirt`](https://github.com/andyettanotherorg/openshell-kubevirt). Last updated **2026-08-12**.
+> **Read this first if you have no context.** This is the living handoff for running Hermes (NemoClaw) as a KubeVirt VM on CRC via OpenShell’s k8s driver + agent-sandbox `runtimeBackend: VirtualMachine`. **Home of this doc:** [`andyettanotherorg/openshell-kubevirt`](https://github.com/andyettanotherorg/openshell-kubevirt). Last updated **2026-08-13**.
+
+## Current state (2026-08-13) — MicroShift seat deploy + smoke (honr-registry tips)
+
+Deployed agent-sandbox controller + OpenShell gateway (VM backend) onto the seat MicroShift cluster from **internal registry digests** only (not `ghcr.io/andyettanotherorg`, not shanemcd GHCR). Fork `main` / upstream untouched.
+
+**Registry pin form used on nodes:** `10.43.52.47:5000` (Service `honr-registry` ClusterIP). Node `registries.conf.d` marks that IP (+ `honr-registry.default.svc.cluster.local:5000`) insecure; short name `honr-registry.default.svc:5000` fails node DNS (`lookup … on 192.168.127.1:53: no such host`) → ImagePullBackOff. Prefer ClusterIP (or FQDN) digests for deploy.
+
+| Component | Namespace | Image (digest) | Tip SHA | Ready |
+|-----------|-----------|----------------|---------|-------|
+| agent-sandbox controller | `agent-sandbox-system` | `10.43.52.47:5000/agent-sandbox-controller@sha256:82810bd8146e4472d32b0a5870c76933bf5ab935fe0f3b45931c32d46ceb76a7` | `andyettanotherorg/agent-sandbox` `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` | **Ready 1/1** |
+| OpenShell gateway STS | `openshell` | `10.43.52.47:5000/openshell-gateway@sha256:916a1351c237e145c3a8ca1ecc881c655ceaa0f475b88be38316146247dc4d53` | `andyettanotherorg/OpenShell` `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` | **Ready 1/1** |
+| OpenShell supervisor (config pin) | (gateway.toml) | `10.43.52.47:5000/openshell-supervisor@sha256:367e0962f20fe5d2157eab330300094adde7b8bc6bf8f7b5c75866a417f93825` | same OpenShell tip | pinned |
+| NemoClaw / Hermes guest artifact | registry only | `…/nemoclaw-hermes@sha256:2bca6d937…` + `…/hermes-sandbox-bootc@sha256:84f95f3a4…` | NemoClaw `832c188…` / this-repo bake | **no `hermes-sandbox-kubevirt` containerDisk in registry** |
+
+**Deploy commands (outcome OK):**
+
+```bash
+# Controller + optional KubeVirt RBAC from andyettanotherorg/agent-sandbox@kubevirt-backend
+oc apply -f k8s/crds/ -f k8s/rbac.generated.yaml \
+  -f k8s/kubevirt-rbac.generated.yaml -f k8s/kubevirt.yaml
+# controller.yaml with ko:// image → tip digest @ 10.43.52.47:5000
+oc -n agent-sandbox-system rollout status deploy/agent-sandbox-controller  # Ready
+
+# Gateway: helm template OpenShell chart (vm-runtime-backend) → apply;
+# sandbox_namespace=default, runtime_backend=VirtualMachine, workspace_persistence=true,
+# allow_unauthenticated_users=true; certgen Job; client TLS mirrored to default.
+# STS data volume: emptyDir (TopoLVM had no free storage for openshell-data PVC).
+# SA openshell granted SCC anyuid (chart UID 1000); ns PSA privileged.
+oc -n openshell rollout status sts/openshell  # Ready
+```
+
+**Smoke:**
+
+| Check | Result |
+|-------|--------|
+| Controller Ready | **Pass** — `deploy/agent-sandbox-controller` 1/1 |
+| Gateway Ready | **Pass** — `sts/openshell` / `openshell-0` 1/1; config has `runtime_backend = "VirtualMachine"` |
+| VM path (controller) | **Pass** — Sandbox `default/smoke-vm` (`runtimeBackend: VirtualMachine`, `quay.io/containerdisks/fedora:latest`) → Ready / VMI Running; meta Secret `smoke-vm-meta` created (then deleted) |
+| Hermes create/exec | **Not feasible this pass** — registry has no `hermes-sandbox-kubevirt` (qcow2 containerDisk); tip `hermes-sandbox-bootc` is OS layers only. Attempted Sandbox with bootc digest reached VMI `Scheduling` then cleaned up. Need bib/containerDisk bake before Hermes create/exec. |
+| `openshell sandbox exec` | **Skipped** — no openshell CLI on seat; Hermes guest not running |
+
+**Seat notes / blockers hit then cleared:**
+
+1. Short registry DNS pull failure → pinned ClusterIP (above).
+2. TopoLVM PVC Pending (`node(s) did not have enough free storage`) → gateway STS uses `emptyDir` for SQLite data (smoke-adequate; not durable).
+3. KubeVirt virt-api webhook certs expired (`notAfter=2026-08-11`); `virt-operator`/`hco-operator` were scaled to 0 (CSV stuck Installing) and blocked on `virt-exportproxy` Route host patch. Scaled operators to 1, deleted/recreated Route, renewed `kubevirt-ca` + `kubevirt-virt-api-certs`, rolled `virt-api` → VM create succeeded.
+
+**Out of scope (unchanged):** full CRC live Hermes redeploy with providers/Slack; GHCR rebuilds; nightly workflow edits; merging feature branches into fork main.
 
 ## Current state (2026-08-12) — seat internal registry tip images
 
