@@ -1,0 +1,4 @@
+[Unit]
+Description=Hermes Agent (gateway + dashboard)
+Wants=hermes-gateway.service hermes-dashboard.service
+After=hermes-gateway.service hermes-dashboard.service

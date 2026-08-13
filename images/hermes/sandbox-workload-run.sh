@@ -43,10 +43,16 @@ if [ "${SANDBOX_WORKLOAD_IN_NETNS:-}" = "1" ]; then
   fi
 
   _PROXY_URL="http://${PROXY_HOST}:${PROXY_PORT}"
-  export HTTP_PROXY="$_PROXY_URL" HTTPS_PROXY="$_PROXY_URL"
-  export http_proxy="$_PROXY_URL" https_proxy="$_PROXY_URL"
+  export HTTP_PROXY="$_PROXY_URL" HTTPS_PROXY="$_PROXY_URL" ALL_PROXY="$_PROXY_URL"
+  export http_proxy="$_PROXY_URL" https_proxy="$_PROXY_URL" all_proxy="$_PROXY_URL"
+  export grpc_proxy="$_PROXY_URL"
   export NO_PROXY="localhost,127.0.0.1,::1,${PROXY_HOST}"
   export no_proxy="$NO_PROXY"
+  # Node fetch / undici honor proxy env when set (dashboard / tooling).
+  export NODE_USE_ENV_PROXY="${NODE_USE_ENV_PROXY:-1}"
+  # PTY Landlock workaround (also installed in the Hermes venv site-packages).
+  export PYTHONPATH="/usr/local/lib/hermes/pythonpath${PYTHONPATH:+:${PYTHONPATH}}"
+  export HERMES_TUI_DIR="${HERMES_TUI_DIR:-/opt/hermes/ui-tui}"
 
   for cand in \
     /etc/openshell-tls/ca-bundle.pem \
@@ -59,6 +65,7 @@ if [ "${SANDBOX_WORKLOAD_IN_NETNS:-}" = "1" ]; then
       export CURL_CA_BUNDLE="$cand"
       export GIT_SSL_CAINFO="$cand"
       export NODE_EXTRA_CA_CERTS="$cand"
+      export DENO_CERT="$cand"
       break
     fi
   done

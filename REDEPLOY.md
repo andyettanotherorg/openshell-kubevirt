@@ -145,13 +145,15 @@ unset OPENSHELL_GATEWAY_ENDPOINT
 
 POLICY="${TOOLBOX:-$HOME/github/shanemcd/toolbox}/openshell-kubevirt/policy.yaml"
 
+# Do NOT pass `-- /usr/local/bin/nemoclaw-start-vm` for site/minimal disks —
+# that binary is nemoclaw-only (exit 127). Leave argv empty so the image
+# default `/usr/local/bin/sandbox-entrypoint` → hermes-start.sh wins.
 openshell sandbox create \
   --name hermes \
   --from "$IMAGE" \
   --policy "$POLICY" \
   --provider vertex-prod --provider slack --provider github \
-  --provider atlassian --provider gws --provider gitlab \
-  -- /usr/local/bin/nemoclaw-start-vm
+  --provider atlassian --provider gws --provider gitlab
 
 for p in github slack vertex-prod atlassian gws gitlab; do
   openshell sandbox provider attach hermes "$p" 2>/dev/null || true
@@ -324,17 +326,39 @@ Also confirm Slack / Signal / inference after an in-place disk restart or recrea
 
 CLI form (combined mode): `openshell sandbox exec whoami` — sandbox name is `-n` / last-used, **not** a positional before the command (`exec hermes whoami` runs `hermes` as the remote argv[0]).
 
+### Dashboard (site / hermes-minimal)
+
+Guest image starts `hermes-gateway` + `hermes-dashboard` under a nested
+`systemd --user` (`hermes.target`) inside the OpenShell netns. `hermes-start.sh`
+snapshots OpenShell proxy/TLS env into `workload.env` so dashboard chat can
+reach `inference.local` via `HTTPS_PROXY` (the name does not resolve in DNS).
+PTY allocation uses `/dev/pts/ptmx` (`sitecustomize` + pts remount) because
+Landlock denies `/dev/ptmx`. After Ready:
+
+```bash
+export OPENSHELL_GATEWAY=crc
+openshell forward service hermes --target-port 9119 --local 9119
+# → http://127.0.0.1:9119
+```
+
+Do **not** run `hermes dashboard` by hand (and do not omit `HERMES_TUI_DIR` —
+the unit sets `HERMES_TUI_DIR=/opt/hermes/ui-tui` so chat does not `npm install`).
+
 ## 5. CRC create gotchas (2026-08-13)
 
 Hit while bringing up `hermes-kv-proof` / `hermes-site-kubevirt` on MicroShift:
 
 ### SA token Secret name mismatch → stuck `Provisioning`
 
-OpenShell’s k8s VM path mounts Secret `{sandboxName}-openshell-sa-token` (e.g. `hermes-kv-proof-openshell-sa-token`). agent-sandbox names the Sandbox CR `default--{sandboxName}` and mints `default--{sandboxName}-openshell-sa-token`. If those diverge, the guest presents a stale/wrong BoundServiceAccountToken; gateway logs show `IssueSandboxToken` TokenReview failures (`pod UID … does not match service account pod ref claim`) and the CLI stays on **Provisioning** even when the VMI is Running.
+OpenShell’s k8s VM path used to mount Secret `{sandboxName}-openshell-sa-token`
+while agent-sandbox mints `{workspace}--{sandboxName}-openshell-sa-token`
+(e.g. `default--hermes-kv-proof-openshell-sa-token`). Mismatch → TokenReview
+failures and CLI stuck on **Provisioning**.
 
-**Workaround until fixed upstream:** keep the VM-mounted Secret’s `token` key identical to the controller-managed Secret (patch on mint/refresh), then `virtctl restart` so the guest remounts. A one-shot alias is not enough — the controller refreshes when the bootstrap Pod UID changes.
-
-**Real fix:** align OpenShell `secretName` with the Sandbox CR name prefix (`default--…`) or teach the controller to use the short name the driver emits.
+**Fixed** in OpenShell `vm-runtime-backend` (gateway ≥ `…+g49c1f157`): secret
+name includes the workspace prefix. Pin CRC with `./scripts/pin-crc-from-ghcr.sh`
+after a nightly that builds that tip. Manual Secret alias + restart is only a
+legacy recovery path.
 
 ### Static hostpath workspace + QEMU `Permission denied`
 
@@ -348,6 +372,10 @@ Prefer the passthrough Route (`oc -n openshell get route openshell` — on this 
 
 - Toolbox Slack policy: `*.slack.com` + `files.slack.com` can fail OpenShell policy validation — strip the specific host for create.
 - Create **without** `--provider` leaves an empty attach set; run §3 after Ready.
+- Do **not** append `-- /usr/local/bin/nemoclaw-start-vm` when creating from
+  `hermes-site-kubevirt` / `hermes-minimal-*` — that path only exists on the
+  nemoclaw guest (create “succeeds” then workload exits 127). Omit the command
+  so `/usr/local/bin/sandbox-entrypoint` → `hermes-start.sh` runs.
 
 ## Notes
 

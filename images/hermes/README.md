@@ -9,10 +9,14 @@ and layer on the **hermes-minimal** bootc image.
 | Variant | Containerfile | GHCR bootc | GHCR containerDisk | Workload |
 |---------|---------------|------------|--------------------|----------|
 | **nemoclaw** (default) | `Containerfile.nemoclaw` | `hermes-sandbox-bootc` | `hermes-sandbox-kubevirt` | `nemoclaw-start-vm` (config seals / MCP integrity) |
-| **hermes-minimal** | `Containerfile.minimal` | `hermes-minimal-bootc` | `hermes-minimal-kubevirt` | `hermes-start.sh` → `hermes gateway run` (no NemoClaw) |
+| **hermes-minimal** | `Containerfile.minimal` | `hermes-minimal-bootc` | `hermes-minimal-kubevirt` | `hermes-start.sh` → nested `systemd --user` (`hermes.target`: gateway + dashboard on `:9119`) |
 
 Both images symlink `/usr/local/bin/sandbox-entrypoint` to the variant
 entrypoint. Shared scripts default `OPENSHELL_SANDBOX_COMMAND` to that path.
+The nemoclaw guest still uses `nemoclaw-start-vm` (gateway only); PTY
+`sitecustomize` + `/dev/pts` remount are shared so Landlock-safe PTYs work if
+a dashboard is started. Nested gateway+dashboard systemd is **hermes-minimal /
+site only**.
 
 ```bash
 cp -n hermes.env.example hermes.env
@@ -78,3 +82,34 @@ after the uid drop context is prepared.
 
 Override the workload with `OPENSHELL_SANDBOX_COMMAND` / gateway `sandbox_command`
 if needed.
+
+## Dashboard (hermes-minimal / site)
+
+`hermes-start.sh` execs a nested `systemd --user --unit=hermes.target` **inside**
+the OpenShell sandbox netns (not the linger `user@10001` on the guest root
+netns). That pulls in:
+
+| Unit | Role |
+|------|------|
+| `hermes-gateway.service` | `hermes gateway run` |
+| `hermes-dashboard.service` | `hermes dashboard` on `127.0.0.1:9119` with `HERMES_TUI_DIR=/opt/hermes/ui-tui` |
+| `sitecustomize.py` | In Hermes venv `site-packages` + `PYTHONPATH`; routes `openpty` to `/dev/pts/ptmx` (OpenShell denies `/dev/ptmx`) |
+| `workload.env` | Written by `hermes-start` each boot; carries `HTTPS_PROXY` / CA so dashboard can call `inference.local` |
+
+`prepare-sandbox-volumes.sh` remounts `/dev/pts` with `ptmxmode=666` so
+`/dev/pts/ptmx` is usable inside the Landlock tree.
+
+Host: only port-forward after the sandbox is Ready:
+
+```bash
+export OPENSHELL_GATEWAY=crc
+openshell forward service <sandbox> --target-port 9119 --local 9119
+# → http://127.0.0.1:9119
+```
+
+Inspect inside the guest with the nested bus:
+
+```bash
+XDG_RUNTIME_DIR=/sandbox/.hermes/user-systemd \
+  systemctl --user status hermes-gateway hermes-dashboard
+```

@@ -1,6 +1,7 @@
 # Site-specific files (copy from .example templates)
 hermes.env
 extra-ca-certs.pem
+__pycache__/
 
 # Supervisor comes from an OpenShell supervisor *image* via COPY --from
 # (see Containerfile.nemoclaw / Containerfile.minimal). Do not stage a raw binary here.

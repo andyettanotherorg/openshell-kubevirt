@@ -83,6 +83,14 @@ COPY extra-ca-certs.pem /tmp/extra-ca-certs.pem
 RUN cat /tmp/extra-ca-certs.pem >> /etc/pki/tls/certs/ca-bundle.crt && \
     rm /tmp/extra-ca-certs.pem
 
+# PTY workaround for OpenShell Landlock (os.openpty → /dev/pts/ptmx).
+# Venv site-packages auto-load; pythonpath copy for explicit PYTHONPATH.
+RUN mkdir -p /usr/local/lib/hermes/pythonpath
+COPY sitecustomize.py /usr/local/lib/hermes/pythonpath/sitecustomize.py
+RUN SITE_PKGS="$(/opt/hermes/.venv/bin/python -c 'import site; print(site.getsitepackages()[0])')" && \
+    cp /usr/local/lib/hermes/pythonpath/sitecustomize.py "${SITE_PKGS}/sitecustomize.py" && \
+    chmod 644 /usr/local/lib/hermes/pythonpath/sitecustomize.py "${SITE_PKGS}/sitecustomize.py"
+
 # ── Hermes config (agent-sandbox VM; messaging platforms disabled) ─────
 COPY SOUL.md /sandbox/.hermes/SOUL.md
 COPY hermes.env /tmp/hermes.env

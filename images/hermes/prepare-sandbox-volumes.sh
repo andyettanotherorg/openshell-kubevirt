@@ -268,3 +268,11 @@ if [ -d /sandbox/.hermes ]; then
   fi
 fi
 mkdir -p /run/nemoclaw /run/openshell /etc/openshell/auth /etc/openshell-tls/client
+
+# Hermes dashboard Chat needs PTYs. Boot/default often mounts
+# /dev/pts with ptmxmode=000 (unusable /dev/pts/ptmx). Remount so
+# sitecustomize.py can allocate via /dev/pts/ptmx under OpenShell Landlock
+# (which denies the /dev/ptmx path). Shared mount → visible in sandbox netns.
+if mountpoint -q /dev/pts 2>/dev/null; then
+  mount -o remount,gid=5,mode=620,ptmxmode=666 /dev/pts 2>/dev/null || true
+fi
