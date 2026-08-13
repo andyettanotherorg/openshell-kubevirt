@@ -65,7 +65,7 @@ COPY --from=nemoclaw /usr/local/bin/nemoclaw-start /usr/local/bin/nemoclaw-start
 COPY --from=nemoclaw /usr/local/bin/nemoclaw-start-vm /usr/local/bin/nemoclaw-start-vm
 COPY --from=nemoclaw /usr/local/bin/nemoclaw-gateway-control /usr/local/bin/nemoclaw-gateway-control
 COPY --from=nemoclaw /usr/local/lib/nemoclaw /usr/local/lib/nemoclaw
-COPY --from=nemoclaw /usr/local/bin/gosu /usr/local/bin/gosu
+# NemoClaw tip no longer ships gosu (Dockerfile.base asserts it is absent).
 COPY --from=nemoclaw /sandbox/.hermes /sandbox/.hermes
 
 # Fix venv python symlinks to point at Fedora's python3.13

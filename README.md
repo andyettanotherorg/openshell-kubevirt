@@ -23,6 +23,18 @@ Forks and product code stay in their upstreams; handoff notes, runbooks, and the
 
 See [`TRACKING.md`](./TRACKING.md) for verify notes from the rebase Tasks.
 
+## Seat internal registry (honr-registry tip bake)
+
+On the MicroShift seat, tip images are built in-cluster and pushed to **`honr-registry.default.svc:5000`** (Service `honr-registry` in `default`). Do **not** pin this seat to stale `ghcr.io/shanemcd` nightlies unless those layers are rebuilt from the tips below into the internal registry. Digest table + bake notes: [`TRACKING.md`](./TRACKING.md) § *seat internal registry tip images*.
+
+| Image | Tip source |
+|-------|------------|
+| `honr-registry.default.svc:5000/agent-sandbox-controller` | andyettanotherorg/agent-sandbox `@kubevirt-backend` |
+| `honr-registry.default.svc:5000/openshell-gateway` | andyettanotherorg/OpenShell `@vm-runtime-backend` |
+| `honr-registry.default.svc:5000/openshell-supervisor` | andyettanotherorg/OpenShell `@vm-runtime-backend` |
+| `honr-registry.default.svc:5000/nemoclaw-hermes` | andyettanotherorg/NemoClaw `@vm-runtime-backend` |
+| `honr-registry.default.svc:5000/hermes-sandbox-bootc` | this repo `images/hermes` + tip supervisor/nemoclaw |
+
 ## Nightly CI
 
 Workflow: [`.github/workflows/nightly-rebuild.yml`](.github/workflows/nightly-rebuild.yml)
@@ -54,7 +66,9 @@ gh secret set APP_PRIVATE_KEY --repo andyettanotherorg/openshell-kubevirt < /pat
 ```
 
 `hermes-site-*` GHCR packages were first published from toolbox and may still be linked there. If `build-hermes-site` cannot push, add **openshell-kubevirt** with Write under each package’s Manage Actions access.
-### GHCR images (amd64)
+### GHCR images (amd64) — nightly CI publish path
+
+> Seat deploy should prefer **honr-registry tip digests** (above / TRACKING). The GHCR table below is the nightly workflow output path (`shanemcd` / org GHCR), not the seat pin.
 
 | Image | Source |
 |-------|--------|
@@ -73,5 +87,6 @@ Tags: `nightly`, `YYYYMMDD`, `sha-<short>` (plus `kubevirt` on openshell-supervi
 
 ## Published images
 
+- **Seat tip bake:** `honr-registry.default.svc:5000` digests in [`TRACKING.md`](./TRACKING.md)
 - Nightly OCI layers + containerDisk: see **GHCR images** above
 - Quay mirror (optional): [`quay.io/shanemcd/hermes-sandbox-kubevirt:latest`](https://quay.io/repository/shanemcd/hermes-sandbox-kubevirt)
