@@ -85,6 +85,8 @@ gh secret set APP_PRIVATE_KEY --repo andyettanotherorg/openshell-kubevirt < /pat
 
 Tags: `nightly`, `YYYYMMDD`, `sha-<short>` (plus `kubevirt` on openshell-supervisor; site also tags `latest`).
 
+**Latest green proof (2026-08-13):** [Actions run 31667054629](https://github.com/andyettanotherorg/openshell-kubevirt/actions/runs/31667054629) — minimal bake (`rebase=false`, `push_images=true`, no containerDisk/site). Image tag table in [`TRACKING.md`](./TRACKING.md) § *nightly-rebuild green on ghcr.io/andyettanotherorg*.
+
 ## Published images
 
 - **Seat tip bake:** `honr-registry.default.svc:5000` digests in [`TRACKING.md`](./TRACKING.md)
