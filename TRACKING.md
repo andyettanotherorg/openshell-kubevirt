@@ -4,16 +4,35 @@
 
 **Org move (2026-08-13):** forks + this tracking repo transferred from `andyettanotherorg` → `andyetanotherorg`. Old GitHub URLs redirect. Existing GHCR packages may still live under `ghcr.io/andyettanotherorg` until transferred or rebuilt under `ghcr.io/andyetanotherorg` (`REGISTRY` follows `github.repository_owner`).
 
-## Current state (2026-08-13) — CRC pinned to GHCR nightlies
+## Current state (2026-08-13) — CRC site sandbox Ready via GHCR (start here)
 
-Full nightly [31687273554](https://github.com/andyetanotherorg/openshell-kubevirt/actions/runs/31687273554) succeeded. CRC MicroShift pulls `ghcr.io/andyetanotherorg/…` digests directly via [`scripts/pin-crc-from-ghcr.sh`](./scripts/pin-crc-from-ghcr.sh) (controller + gateway together). Do **not** copy images into an internal registry — see [`REDEPLOY.md`](./REDEPLOY.md).
+Full nightly [31687273554](https://github.com/andyetanotherorg/openshell-kubevirt/actions/runs/31687273554) succeeded. CRC MicroShift pulls `ghcr.io/andyetanotherorg/…` digests via [`scripts/pin-crc-from-ghcr.sh`](./scripts/pin-crc-from-ghcr.sh) (no Quay/honr mirror). Host daily gateway `openshell-ts` left alone; CRC CLI uses `OPENSHELL_GATEWAY=crc`. See [`REDEPLOY.md`](./REDEPLOY.md).
 
 | Component | Namespace | Image | Tip |
 |-----------|-----------|-------|-----|
 | agent-sandbox controller | `agent-sandbox-system` | `ghcr.io/andyetanotherorg/agent-sandbox-controller@sha256:179d60df5e542f4faa912e7ad683e16918a4f6fe6f22f37cf5c9d954e97c2e24` | `kubevirt-backend` @ `bc4bcaa` |
 | OpenShell gateway STS | `openshell` | `ghcr.io/andyetanotherorg/openshell-gateway@sha256:d29c9a8c6dc2e65756261d1b16c2b801c5e8af6c079c5e9883d07ed26b0ff01e` | `vm-runtime-backend` @ `d93a6a5` |
 
-Both pods **Ready** after pin (GHCR pull OK). Host CLI still needs a passthrough Route + gateway name `crc` (Route was empty at pin time).
+Created throwaway **`hermes-kv-proof`** from **`hermes-site-kubevirt`**.
+
+| Check | Result |
+|-------|--------|
+| Route | Passthrough `openshell-openshell.apps.crc.testing` (not `apps-crc.testing`) |
+| `openshell gateway info` (`crc`) | Healthy — gateway `0.0.83-dev.10+gd93a6a56` |
+| Sandbox / VMI | **Ready** / Running (`default--hermes-kv-proof`) |
+| `openshell sandbox exec whoami` | `sandbox` (combined mode) |
+| Providers | **None attached** (create omitted `--provider`) |
+
+**Blockers cleared this pass** (full recipes in [`REDEPLOY.md`](./REDEPLOY.md) §5):
+
+1. mTLS BadSignature → re-seed client CA from same CA as regenerated server cert (Route SAN).
+2. TopoLVM full → static hostpath PV/PVC `workspace-hermes-kv-proof` + `disk.img` perms `107:107` / `666` / `container_file_t`.
+3. Toolbox Slack policy validation (`*.slack.com` vs `files.slack.com`) → create with patched policy.
+4. SA token Secret name mismatch (`hermes-kv-proof-openshell-sa-token` vs controller `default--…-openshell-sa-token`) → sync token + VM restart; keep alias fresh on refresh.
+
+**Open:** upstream SA-token naming fix (OpenShell vs agent-sandbox); attach providers; optional TopoLVM recovery; toolbox policy fix.
+
+Older “honr-registry tip” / seat-internal bake sections below are **historical** — prefer GHCR digests + this section for CRC verify.
 
 ## Current state (2026-08-13) — nightly-rebuild green on `ghcr.io/andyetanotherorg`
 
@@ -185,7 +204,7 @@ Bootc image ([`images/hermes/Containerfile.nemoclaw`](./images/hermes/Containerf
 | CRC OpenShift | Up; `oc` as `kubeadmin` via `~/.crc/machines/crc/kubeconfig` |
 | Gateway `openshell-0` | **Ready 1/1** (Fedora 44 image; pin STS to **digest**, not tag alone) |
 | Gateway config | `sandbox_namespace = "default"`, `runtime_backend = "VirtualMachine"`, `sandbox_command` empty or `/usr/local/bin/sandbox-entrypoint` (image owns nemoclaw-start-vm vs hermes-start.sh), `workspace_persistence = true`, `client_tls_secret_name = "openshell-client-tls"` |
-| Route (prefer this) | `openshell-openshell.apps-crc.testing` → svc `openshell:grpc` (**TLS passthrough**). CLI gateway `crc` already points here with mTLS. **Do not use `oc port-forward` for normal work.** |
+| Route (prefer this) | `openshell-openshell.apps.crc.testing` → svc `openshell:grpc` (**TLS passthrough**; confirm with `oc -n openshell get route`). Older notes saying `apps-crc.testing` are stale. CLI gateway `crc` + mTLS. **Do not use `oc port-forward` for normal work.** |
 | agent-sandbox controller | Virtio Secret metadata + optional kubevirt RBAC on fork. **Pin deploy image to a GHCR digest** (`./scripts/pin-crc-from-ghcr.sh`). After redeploy with the RBAC split, apply `k8s/kubevirt*.yaml` or `--kubevirt` / `KUBEVIRT=true`. |
 | OpenShell k8s driver (in gateway) | VM path emits TLS Secret volume/mount + `OPENSHELL_TLS_{CA,CERT,KEY}` path env (same as pods); workspace VCT when persistence enabled |
 | Hermes Sandbox / VMI | `default/hermes` Ready / Running; Slack Socket Mode recovered after guest volume prep fixes |
