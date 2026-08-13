@@ -355,11 +355,13 @@ jobs:
           DOCKER_PLATFORM=linux/amd64 tasks/scripts/stage-prebuilt-binaries.sh gateway
           # Script maps IMAGE_REGISTRY + openshell/gateway → ${REGISTRY}/gateway
           # OpenShell disables local BuildKit cache when CI=1; pass GHA scopes via extra args.
+          # OpenShell prefers podman when present; GHA cache (type=gha) needs docker buildx.
           IMAGE_REGISTRY="${REGISTRY}" \
           IMAGE_TAG="${TAG}" \
           DOCKER_PLATFORM=linux/amd64 \
           DOCKER_PUSH=1 \
           CI=1 \
+          CONTAINER_ENGINE=docker \
             tasks/scripts/docker-build-image.sh gateway \
               --cache-from type=gha,scope=openshell-gateway \
               --cache-to type=gha,mode=max,scope=openshell-gateway
@@ -417,11 +419,13 @@ jobs:
           TAG="sha-${SHORT}"
           mise install --locked
           DOCKER_PLATFORM=linux/amd64 tasks/scripts/stage-prebuilt-binaries.sh supervisor
+          # OpenShell prefers podman when present; GHA cache (type=gha) needs docker buildx.
           IMAGE_REGISTRY="${REGISTRY}" \
           IMAGE_TAG="${TAG}" \
           DOCKER_PLATFORM=linux/amd64 \
           DOCKER_PUSH=1 \
           CI=1 \
+          CONTAINER_ENGINE=docker \
             tasks/scripts/docker-build-image.sh supervisor \
               --cache-from type=gha,scope=openshell-supervisor \
               --cache-to type=gha,mode=max,scope=openshell-supervisor
