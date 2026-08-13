@@ -1,12 +1,8 @@
 # Temporary seat helper: honr-app cannot Actions-dispatch from outside the runner.
-# Push to honr/card-55 triggers a same-repo workflow_dispatch of nightly-rebuild
-# with the FULL bake inputs (all image/job paths). Remove the push trigger after
-# the dispatch is accepted so doc commits do not re-bake.
+# Manual workflow_dispatch only — full bake inputs (do not auto-fire on push).
 name: Dispatch nightly proof
 
 on:
-  push:
-    branches: [honr/card-55]
   workflow_dispatch:
 
 permissions:
