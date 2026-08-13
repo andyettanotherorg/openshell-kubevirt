@@ -1,25 +1,27 @@
 # KubeVirt VM Hermes: Handoff + Bake Results
 
-> **Read this first if you have no context.** This is the living handoff for running Hermes (NemoClaw) as a KubeVirt VM on CRC via OpenShell’s k8s driver + agent-sandbox `runtimeBackend: VirtualMachine`. **Home of this doc:** [`andyettanotherorg/openshell-kubevirt`](https://github.com/andyettanotherorg/openshell-kubevirt). Last updated **2026-08-13**.
+> **Read this first if you have no context.** This is the living handoff for running Hermes (NemoClaw) as a KubeVirt VM on CRC via OpenShell’s k8s driver + agent-sandbox `runtimeBackend: VirtualMachine`. **Home of this doc:** [`andyetanotherorg/openshell-kubevirt`](https://github.com/andyetanotherorg/openshell-kubevirt). Last updated **2026-08-13**.
 
-## Current state (2026-08-13) — nightly-rebuild green on `ghcr.io/andyettanotherorg`
+**Org move (2026-08-13):** forks + this tracking repo transferred from `andyettanotherorg` → `andyetanotherorg`. Old GitHub URLs redirect. Existing GHCR packages may still live under `ghcr.io/andyettanotherorg` until transferred or rebuilt under `ghcr.io/andyetanotherorg` (`REGISTRY` follows `github.repository_owner`).
+
+## Current state (2026-08-13) — nightly-rebuild green on `ghcr.io/andyetanotherorg`
 
 Proof `workflow_dispatch` of [`.github/workflows/nightly-rebuild.yml`](./.github/workflows/nightly-rebuild.yml) on `honr/card-55` completed **success** (minimal green subset: `rebase=false`, `push_images=true`, `build_container_disk=false`, `build_site_hermes=false`).
 
-**Green run:** https://github.com/andyettanotherorg/openshell-kubevirt/actions/runs/31667054629
+**Green run:** https://github.com/andyetanotherorg/openshell-kubevirt/actions/runs/31667054629
 
-**Fix that unblocked `build-nemoclaw-hermes`:** stop overriding `BASE_IMAGE` with NVIDIA `:latest` (403/missing); use the digest pin already in `andyettanotherorg/NemoClaw` `agents/hermes/Dockerfile`.
+**Fix that unblocked `build-nemoclaw-hermes`:** stop overriding `BASE_IMAGE` with NVIDIA `:latest` (403/missing); use the digest pin already in `andyetanotherorg/NemoClaw` `agents/hermes/Dockerfile`.
 
 **Jobs in scope:** meta + rebases (skip push) + `build-agent-sandbox` + `build-openshell-gateway` + `build-openshell-supervisor` + `build-nemoclaw-hermes` + `build-hermes-bootc` + `build-hermes-minimal-bootc` all **success**. Skipped (by design): containerDisk + site Hermes (multi-hour bib).
 
-**Published image refs** (`ghcr.io/andyettanotherorg/…`; tags from workflow; digests not readable from this seat — GHCR egress denied):
+**Published image refs** (`ghcr.io/andyetanotherorg/…`; tags from workflow; digests not readable from this seat — GHCR egress denied):
 
 | Image | Tags | Source tip |
 |-------|------|------------|
-| `agent-sandbox-controller` | `nightly`, `20260813`, `sha-a21b574` | `andyettanotherorg/agent-sandbox` `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` |
-| `openshell-gateway` | `nightly`, `20260813`, `sha-1c79e1d` | `andyettanotherorg/OpenShell` `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` |
+| `agent-sandbox-controller` | `nightly`, `20260813`, `sha-a21b574` | `andyetanotherorg/agent-sandbox` `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` |
+| `openshell-gateway` | `nightly`, `20260813`, `sha-1c79e1d` | `andyetanotherorg/OpenShell` `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` |
 | `openshell-supervisor` | `nightly`, `20260813`, `sha-1c79e1d`, `kubevirt` | same OpenShell tip |
-| `nemoclaw-hermes` | `nightly`, `20260813`, `sha-832c188`, `kubevirt` | `andyettanotherorg/NemoClaw` `vm-runtime-backend` @ `832c188792a2c58be72246d1eaafae3d09eef582` |
+| `nemoclaw-hermes` | `nightly`, `20260813`, `sha-832c188`, `kubevirt` | `andyetanotherorg/NemoClaw` `vm-runtime-backend` @ `832c188792a2c58be72246d1eaafae3d09eef582` |
 | `hermes-sandbox-bootc` | `nightly`, `20260813`, `sha-98320d8` | this repo `images/hermes/Containerfile.nemoclaw` @ `98320d8` + tip supervisor/nemoclaw |
 | `hermes-minimal-bootc` | `nightly`, `20260813`, `sha-98320d8` | this repo `images/hermes/Containerfile.minimal` @ `98320d8` + tip supervisor |
 
@@ -27,21 +29,21 @@ Not published this pass: `hermes-sandbox-kubevirt`, `hermes-minimal-kubevirt`, `
 
 ## Current state (2026-08-13) — MicroShift seat deploy + smoke (honr-registry tips)
 
-Deployed agent-sandbox controller + OpenShell gateway (VM backend) onto the seat MicroShift cluster from **internal registry digests** only (not `ghcr.io/andyettanotherorg`, not shanemcd GHCR). Fork `main` / upstream untouched.
+Deployed agent-sandbox controller + OpenShell gateway (VM backend) onto the seat MicroShift cluster from **internal registry digests** only (not `ghcr.io/andyetanotherorg`, not shanemcd GHCR). Fork `main` / upstream untouched.
 
 **Registry pin form used on nodes:** `10.43.52.47:5000` (Service `honr-registry` ClusterIP). Node `registries.conf.d` marks that IP (+ `honr-registry.default.svc.cluster.local:5000`) insecure; short name `honr-registry.default.svc:5000` fails node DNS (`lookup … on 192.168.127.1:53: no such host`) → ImagePullBackOff. Prefer ClusterIP (or FQDN) digests for deploy.
 
 | Component | Namespace | Image (digest) | Tip SHA | Ready |
 |-----------|-----------|----------------|---------|-------|
-| agent-sandbox controller | `agent-sandbox-system` | `10.43.52.47:5000/agent-sandbox-controller@sha256:82810bd8146e4472d32b0a5870c76933bf5ab935fe0f3b45931c32d46ceb76a7` | `andyettanotherorg/agent-sandbox` `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` | **Ready 1/1** |
-| OpenShell gateway STS | `openshell` | `10.43.52.47:5000/openshell-gateway@sha256:916a1351c237e145c3a8ca1ecc881c655ceaa0f475b88be38316146247dc4d53` | `andyettanotherorg/OpenShell` `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` | **Ready 1/1** |
+| agent-sandbox controller | `agent-sandbox-system` | `10.43.52.47:5000/agent-sandbox-controller@sha256:82810bd8146e4472d32b0a5870c76933bf5ab935fe0f3b45931c32d46ceb76a7` | `andyetanotherorg/agent-sandbox` `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` | **Ready 1/1** |
+| OpenShell gateway STS | `openshell` | `10.43.52.47:5000/openshell-gateway@sha256:916a1351c237e145c3a8ca1ecc881c655ceaa0f475b88be38316146247dc4d53` | `andyetanotherorg/OpenShell` `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` | **Ready 1/1** |
 | OpenShell supervisor (config pin) | (gateway.toml) | `10.43.52.47:5000/openshell-supervisor@sha256:367e0962f20fe5d2157eab330300094adde7b8bc6bf8f7b5c75866a417f93825` | same OpenShell tip | pinned |
 | NemoClaw / Hermes guest artifact | registry only | `…/nemoclaw-hermes@sha256:2bca6d937…` + `…/hermes-sandbox-bootc@sha256:84f95f3a4…` | NemoClaw `832c188…` / this-repo bake | **no `hermes-sandbox-kubevirt` containerDisk in registry** |
 
 **Deploy commands (outcome OK):**
 
 ```bash
-# Controller + optional KubeVirt RBAC from andyettanotherorg/agent-sandbox@kubevirt-backend
+# Controller + optional KubeVirt RBAC from andyetanotherorg/agent-sandbox@kubevirt-backend
 oc apply -f k8s/crds/ -f k8s/rbac.generated.yaml \
   -f k8s/kubevirt-rbac.generated.yaml -f k8s/kubevirt.yaml
 # controller.yaml with ko:// image → tip digest @ 10.43.52.47:5000
@@ -75,16 +77,16 @@ oc -n openshell rollout status sts/openshell  # Ready
 
 ## Current state (2026-08-12) — seat internal registry tip images
 
-Feature-branch tips were baked **in-cluster** (privileged podman Job/Pod equivalent; no seat-local podman/buildah) and pushed to **`honr-registry.default.svc:5000`** only — **no** publish to `ghcr.io/andyettanotherorg` or shanemcd GHCR; fork `main` / upstream untouched. Prefer these digest pins over stale shanemcd nightlies on this seat.
+Feature-branch tips were baked **in-cluster** (privileged podman Job/Pod equivalent; no seat-local podman/buildah) and pushed to **`honr-registry.default.svc:5000`** only — **no** publish to `ghcr.io/andyetanotherorg` or shanemcd GHCR; fork `main` / upstream untouched. Prefer these digest pins over stale shanemcd nightlies on this seat.
 
 Registry: Service `honr-registry` / DNS `honr-registry.default.svc:5000` (HTTP, insecure). No ImageStream API — use refs/digests directly.
 
 | Image | Source tip | Tag(s) | Digest |
 |-------|------------|--------|--------|
-| `agent-sandbox-controller` | [`andyettanotherorg/agent-sandbox`](https://github.com/andyettanotherorg/agent-sandbox) `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` | `sha-a21b574`, `tip`, `kubevirt-backend` | `sha256:82810bd8146e4472d32b0a5870c76933bf5ab935fe0f3b45931c32d46ceb76a7` |
-| `openshell-gateway` | [`andyettanotherorg/OpenShell`](https://github.com/andyettanotherorg/OpenShell) `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` | `sha-1c79e1d`, `tip`, `kubevirt` | `sha256:916a1351c237e145c3a8ca1ecc881c655ceaa0f475b88be38316146247dc4d53` |
+| `agent-sandbox-controller` | [`andyetanotherorg/agent-sandbox`](https://github.com/andyetanotherorg/agent-sandbox) `kubevirt-backend` @ `a21b574d1f003209f49ae3c87621b6c606664a1a` | `sha-a21b574`, `tip`, `kubevirt-backend` | `sha256:82810bd8146e4472d32b0a5870c76933bf5ab935fe0f3b45931c32d46ceb76a7` |
+| `openshell-gateway` | [`andyetanotherorg/OpenShell`](https://github.com/andyetanotherorg/OpenShell) `vm-runtime-backend` @ `1c79e1d73400821eb906267e1cc9915d25e020de` | `sha-1c79e1d`, `tip`, `kubevirt` | `sha256:916a1351c237e145c3a8ca1ecc881c655ceaa0f475b88be38316146247dc4d53` |
 | `openshell-supervisor` | same OpenShell tip (static `openshell-sandbox`) | `sha-1c79e1d`, `tip`, `kubevirt` | `sha256:367e0962f20fe5d2157eab330300094adde7b8bc6bf8f7b5c75866a417f93825` |
-| `nemoclaw-hermes` | [`andyettanotherorg/NemoClaw`](https://github.com/andyettanotherorg/NemoClaw) `vm-runtime-backend` @ `832c188792a2c58be72246d1eaafae3d09eef582` | `sha-832c188`, `tip`, `kubevirt` | `sha256:2bca6d937a226f87a518a6db9370f8f354147b106acb5fd127471013193d011c` |
+| `nemoclaw-hermes` | [`andyetanotherorg/NemoClaw`](https://github.com/andyetanotherorg/NemoClaw) `vm-runtime-backend` @ `832c188792a2c58be72246d1eaafae3d09eef582` | `sha-832c188`, `tip`, `kubevirt` | `sha256:2bca6d937a226f87a518a6db9370f8f354147b106acb5fd127471013193d011c` |
 | `hermes-sandbox-bootc` | this repo `images/hermes/Containerfile.nemoclaw` + tip `nemoclaw-hermes` + tip `openshell-supervisor` | `tip`, `kubevirt` | `sha256:84f95f3a4f4c696921ccb8b07509110815bf65ce981bca62508cfa9193429a3a` |
 
 Example refs:
@@ -101,13 +103,13 @@ honr-registry.default.svc:5000/hermes-sandbox-bootc@sha256:84f95f3a4f4c696921ccb
 
 ## Current state (2026-08-12) — fork rebases onto upstream `main`
 
-Feature branches on the `andyettanotherorg` forks were rebased onto upstream `main` and force-pushed (fork `main` untouched; no upstream push). Tips + same-fork compare vs fork `main`:
+Feature branches on the `andyetanotherorg` forks were rebased onto upstream `main` and force-pushed (fork `main` untouched; no upstream push). Tips + same-fork compare vs fork `main`:
 
 | Fork | Branch | Tip SHA | Same-fork compare vs `main` |
 |------|--------|---------|-----------------------------|
-| [`andyettanotherorg/agent-sandbox`](https://github.com/andyettanotherorg/agent-sandbox) | `kubevirt-backend` | [`a21b574d1f003209f49ae3c87621b6c606664a1a`](https://github.com/andyettanotherorg/agent-sandbox/commit/a21b574d1f003209f49ae3c87621b6c606664a1a) | [compare](https://github.com/andyettanotherorg/agent-sandbox/compare/main...kubevirt-backend) |
-| [`andyettanotherorg/OpenShell`](https://github.com/andyettanotherorg/OpenShell) | `vm-runtime-backend` | [`1c79e1d73400821eb906267e1cc9915d25e020de`](https://github.com/andyettanotherorg/OpenShell/commit/1c79e1d73400821eb906267e1cc9915d25e020de) | [compare](https://github.com/andyettanotherorg/OpenShell/compare/main...vm-runtime-backend) |
-| [`andyettanotherorg/NemoClaw`](https://github.com/andyettanotherorg/NemoClaw) | `vm-runtime-backend` | [`832c188792a2c58be72246d1eaafae3d09eef582`](https://github.com/andyettanotherorg/NemoClaw/commit/832c188792a2c58be72246d1eaafae3d09eef582) | [compare](https://github.com/andyettanotherorg/NemoClaw/compare/main...vm-runtime-backend) |
+| [`andyetanotherorg/agent-sandbox`](https://github.com/andyetanotherorg/agent-sandbox) | `kubevirt-backend` | [`a21b574d1f003209f49ae3c87621b6c606664a1a`](https://github.com/andyetanotherorg/agent-sandbox/commit/a21b574d1f003209f49ae3c87621b6c606664a1a) | [compare](https://github.com/andyetanotherorg/agent-sandbox/compare/main...kubevirt-backend) |
+| [`andyetanotherorg/OpenShell`](https://github.com/andyetanotherorg/OpenShell) | `vm-runtime-backend` | [`1c79e1d73400821eb906267e1cc9915d25e020de`](https://github.com/andyetanotherorg/OpenShell/commit/1c79e1d73400821eb906267e1cc9915d25e020de) | [compare](https://github.com/andyetanotherorg/OpenShell/compare/main...vm-runtime-backend) |
+| [`andyetanotherorg/NemoClaw`](https://github.com/andyetanotherorg/NemoClaw) | `vm-runtime-backend` | [`832c188792a2c58be72246d1eaafae3d09eef582`](https://github.com/andyetanotherorg/NemoClaw/commit/832c188792a2c58be72246d1eaafae3d09eef582) | [compare](https://github.com/andyetanotherorg/NemoClaw/compare/main...vm-runtime-backend) |
 
 **Verify notes (rebase Tasks):** native unit/build checks were run on each rebased branch before force-push (agent-sandbox Go/Make; OpenShell cargo/Make with `CARGO_HOME=/sandbox/.cargo`; NemoClaw repo unit/build). VM backend invariants preserved (agent-sandbox VirtualMachine path; OpenShell k8s VM path; NemoClaw Hermes guest VM-runtime). No push to upstream; fork `main` left matching upstream.
 
@@ -128,23 +130,23 @@ Live Hermes uses named PVC passthrough **`workspace-hermes-20gi`** (guest `/dev/
 
 | Upstream | Fork branch | Compare (upstream) | Same-fork vs `main` |
 |----------|-------------|--------------------|---------------------|
-| [`kubernetes-sigs/agent-sandbox`](https://github.com/kubernetes-sigs/agent-sandbox) | [`andyettanotherorg/agent-sandbox` `kubevirt-backend`](https://github.com/andyettanotherorg/agent-sandbox/tree/kubevirt-backend) @ `a21b574` | [upstream](https://github.com/kubernetes-sigs/agent-sandbox/compare/main...andyettanotherorg:agent-sandbox:kubevirt-backend) | [fork](https://github.com/andyettanotherorg/agent-sandbox/compare/main...kubevirt-backend) |
-| [`NVIDIA/OpenShell`](https://github.com/NVIDIA/OpenShell) | [`andyettanotherorg/OpenShell` `vm-runtime-backend`](https://github.com/andyettanotherorg/OpenShell/tree/vm-runtime-backend) @ `1c79e1d` | [upstream](https://github.com/NVIDIA/OpenShell/compare/main...andyettanotherorg:OpenShell:vm-runtime-backend) | [fork](https://github.com/andyettanotherorg/OpenShell/compare/main...vm-runtime-backend) |
-| [`NVIDIA/NemoClaw`](https://github.com/NVIDIA/NemoClaw) | [`andyettanotherorg/NemoClaw` `vm-runtime-backend`](https://github.com/andyettanotherorg/NemoClaw/tree/vm-runtime-backend) @ `832c188` | [upstream](https://github.com/NVIDIA/NemoClaw/compare/main...andyettanotherorg:NemoClaw:vm-runtime-backend) | [fork](https://github.com/andyettanotherorg/NemoClaw/compare/main...vm-runtime-backend) |
+| [`kubernetes-sigs/agent-sandbox`](https://github.com/kubernetes-sigs/agent-sandbox) | [`andyetanotherorg/agent-sandbox` `kubevirt-backend`](https://github.com/andyetanotherorg/agent-sandbox/tree/kubevirt-backend) @ `a21b574` | [upstream](https://github.com/kubernetes-sigs/agent-sandbox/compare/main...andyetanotherorg:agent-sandbox:kubevirt-backend) | [fork](https://github.com/andyetanotherorg/agent-sandbox/compare/main...kubevirt-backend) |
+| [`NVIDIA/OpenShell`](https://github.com/NVIDIA/OpenShell) | [`andyetanotherorg/OpenShell` `vm-runtime-backend`](https://github.com/andyetanotherorg/OpenShell/tree/vm-runtime-backend) @ `1c79e1d` | [upstream](https://github.com/NVIDIA/OpenShell/compare/main...andyetanotherorg:OpenShell:vm-runtime-backend) | [fork](https://github.com/andyetanotherorg/OpenShell/compare/main...vm-runtime-backend) |
+| [`NVIDIA/NemoClaw`](https://github.com/NVIDIA/NemoClaw) | [`andyetanotherorg/NemoClaw` `vm-runtime-backend`](https://github.com/andyetanotherorg/NemoClaw/tree/vm-runtime-backend) @ `832c188` | [upstream](https://github.com/NVIDIA/NemoClaw/compare/main...andyetanotherorg:NemoClaw:vm-runtime-backend) | [fork](https://github.com/andyetanotherorg/NemoClaw/compare/main...vm-runtime-backend) |
 | — | [`shanemcd/clankr` `main`](https://github.com/shanemcd/clankr) (Hermes bootc image/config; no fork/upstream split) | [repo](https://github.com/shanemcd/clankr) | — |
-| — | [`andyettanotherorg/openshell-kubevirt`](https://github.com/andyettanotherorg/openshell-kubevirt) (this handoff / tracking) | [repo](https://github.com/andyettanotherorg/openshell-kubevirt) | — |
+| — | [`andyetanotherorg/openshell-kubevirt`](https://github.com/andyetanotherorg/openshell-kubevirt) (this handoff / tracking) | [repo](https://github.com/andyetanotherorg/openshell-kubevirt) | — |
 
 Local clones (paths are machine-local; remotes matter more than layout):
 
 | Clone | Branch | Remotes |
 |-------|--------|---------|
-| `kubernetes-sigs/agent-sandbox` | `kubevirt-backend` → `fork/kubevirt-backend` | `origin`=sigs, `fork`=andyettanotherorg |
-| `NVIDIA/OpenShell` (local checkout often under a personal org path) | `vm-runtime-backend` → `fork/vm-runtime-backend` | `origin`=NVIDIA, `fork`=andyettanotherorg |
-| `andyettanotherorg/NemoClaw` | `vm-runtime-backend` → `fork/vm-runtime-backend` | `upstream`=NVIDIA, `fork`=andyettanotherorg |
+| `kubernetes-sigs/agent-sandbox` | `kubevirt-backend` → `fork/kubevirt-backend` | `origin`=sigs, `fork`=andyetanotherorg |
+| `NVIDIA/OpenShell` (local checkout often under a personal org path) | `vm-runtime-backend` → `fork/vm-runtime-backend` | `origin`=NVIDIA, `fork`=andyetanotherorg |
+| `andyetanotherorg/NemoClaw` | `vm-runtime-backend` → `fork/vm-runtime-backend` | `upstream`=NVIDIA, `fork`=andyetanotherorg |
 | `shanemcd/clankr` | `main` → `origin/main` | `origin`=shanemcd/clankr |
-| `andyettanotherorg/openshell-kubevirt` | `main` | this tracking repo (handoff doc) |
+| `andyetanotherorg/openshell-kubevirt` | `main` | this tracking repo (handoff doc) |
 
-**OpenShell note (2026-07-12):** Active fork work is thin branch [`vm-runtime-backend`](https://github.com/andyettanotherorg/OpenShell/tree/vm-runtime-backend) (VM Sandbox spec + SA/TLS/workspace/command). Old fat branch [`kubevirt-sidecar`](https://github.com/andyettanotherorg/OpenShell/tree/kubevirt-sidecar) is **archived** (pod sidecar topology + unrelated rebases; not needed for Hermes VM).
+**OpenShell note (2026-07-12):** Active fork work is thin branch [`vm-runtime-backend`](https://github.com/andyetanotherorg/OpenShell/tree/vm-runtime-backend) (VM Sandbox spec + SA/TLS/workspace/command). Old fat branch [`kubevirt-sidecar`](https://github.com/andyetanotherorg/OpenShell/tree/kubevirt-sidecar) is **archived** (pod sidecar topology + unrelated rebases; not needed for Hermes VM).
 
 **agent-sandbox tip (fork):** `a21b574d1f003209f49ae3c87621b6c606664a1a` (rebased onto upstream `main`, 2026-08-12). Earlier: `e324bbf` optional KubeVirt RBAC; `99bd732` virtio Secret metadata (no cloud-init).
 
@@ -259,7 +261,7 @@ KubeVirt VM support for the agent-sandbox controller so Hermes (NemoClaw) runs i
 
 **As of 2026-07-10 (late) — BRANCHES ON FORKS:** Controller + OpenShell sidecar work pushed to `shanemcd` forks (no upstream PRs yet). Early standalone `openshell-driver-kubevirt` POC dropped from the OpenShell branch; approach is an option on the existing Kubernetes driver + process+network sidecar runtime.
 
-**As of 2026-07-10 (cleanup) — LEAN IMAGE + NEMOCLAW BRANCH:** In-image sed/python patches removed. VM/sibling-supervisor support lives on [`andyettanotherorg/NemoClaw` `vm-runtime-backend`](https://github.com/andyettanotherorg/NemoClaw/tree/vm-runtime-backend) (`NEMOCLAW_VM_SIDECAR=1` / `nemoclaw-start-vm`). Bootc image is Hermes + ddgs only (no rust, build toolchain, or extra CLIs).
+**As of 2026-07-10 (cleanup) — LEAN IMAGE + NEMOCLAW BRANCH:** In-image sed/python patches removed. VM/sibling-supervisor support lives on [`andyetanotherorg/NemoClaw` `vm-runtime-backend`](https://github.com/andyetanotherorg/NemoClaw/tree/vm-runtime-backend) (`NEMOCLAW_VM_SIDECAR=1` / `nemoclaw-start-vm`). Bootc image is Hermes + ddgs only (no rust, build toolchain, or extra CLIs).
 
 **As of 2026-07-10 (late) — HERMES ≥0.18 INFERENCE FIX:** `provider: anthropic` + `base_url: https://inference.local` is ignored by Hermes (`_anthropic_base_url_override_ok`); it falls back to `api.anthropic.com` (DENIED by OpenShell). Live config must use `provider: custom`, `base_url: https://inference.local`, `api_key: sk-OPENSHELL-PROXY-REWRITE`, `api_mode: anthropic_messages`. Hot-fixing config/`.env` requires regenerating hashes in **sha256sum format** via `update-config-hashes.py` (wrong format crash-loops with `Config integrity check FAILED`).
 
@@ -279,11 +281,11 @@ KubeVirt VM support for the agent-sandbox controller so Hermes (NemoClaw) runs i
 
 | Repo | Fork / branch | Compare vs `main` | What changed |
 |------|---------------|-------------------|--------------|
-| `kubernetes-sigs/agent-sandbox` | [`kubevirt-backend`](https://github.com/andyettanotherorg/agent-sandbox/tree/kubevirt-backend) @ `a21b574` | [upstream](https://github.com/kubernetes-sigs/agent-sandbox/compare/main...andyettanotherorg:agent-sandbox:kubevirt-backend) · [fork](https://github.com/andyettanotherorg/agent-sandbox/compare/main...kubevirt-backend) | `runtimeBackend: VirtualMachine`, virtio Secret metadata (`sandboxmeta` + Secret disks; no cloud-init), VCT→virtio PVC disks, optional kubevirt RBAC |
-| `NVIDIA/OpenShell` | [`vm-runtime-backend`](https://github.com/andyettanotherorg/OpenShell/tree/vm-runtime-backend) @ `1c79e1d` | [upstream](https://github.com/NVIDIA/OpenShell/compare/main...andyettanotherorg:OpenShell:vm-runtime-backend) · [fork](https://github.com/andyettanotherorg/OpenShell/compare/main...vm-runtime-backend) | Thin VM path: `runtimeBackend` / `sandboxCommand` / `workspace_persistence`, SA Secret bootstrap, VM TLS mounts. **Archived:** [`kubevirt-sidecar`](https://github.com/andyettanotherorg/OpenShell/tree/kubevirt-sidecar) (fat pod-sidecar + rebase pile) |
-| `NVIDIA/NemoClaw` | [`vm-runtime-backend`](https://github.com/andyettanotherorg/NemoClaw/tree/vm-runtime-backend) @ `832c188` | [upstream](https://github.com/NVIDIA/NemoClaw/compare/main...andyettanotherorg:NemoClaw:vm-runtime-backend) · [fork](https://github.com/andyettanotherorg/NemoClaw/compare/main...vm-runtime-backend) | OpenShell-supervised identity (sibling **or parent**) + `nemoclaw-start-vm` (`NEMOCLAW_VM_SIDECAR=1`). **Archived:** [`kubevirt-sidecar`](https://github.com/andyettanotherorg/NemoClaw/tree/kubevirt-sidecar) |
+| `kubernetes-sigs/agent-sandbox` | [`kubevirt-backend`](https://github.com/andyetanotherorg/agent-sandbox/tree/kubevirt-backend) @ `a21b574` | [upstream](https://github.com/kubernetes-sigs/agent-sandbox/compare/main...andyetanotherorg:agent-sandbox:kubevirt-backend) · [fork](https://github.com/andyetanotherorg/agent-sandbox/compare/main...kubevirt-backend) | `runtimeBackend: VirtualMachine`, virtio Secret metadata (`sandboxmeta` + Secret disks; no cloud-init), VCT→virtio PVC disks, optional kubevirt RBAC |
+| `NVIDIA/OpenShell` | [`vm-runtime-backend`](https://github.com/andyetanotherorg/OpenShell/tree/vm-runtime-backend) @ `1c79e1d` | [upstream](https://github.com/NVIDIA/OpenShell/compare/main...andyetanotherorg:OpenShell:vm-runtime-backend) · [fork](https://github.com/andyetanotherorg/OpenShell/compare/main...vm-runtime-backend) | Thin VM path: `runtimeBackend` / `sandboxCommand` / `workspace_persistence`, SA Secret bootstrap, VM TLS mounts. **Archived:** [`kubevirt-sidecar`](https://github.com/andyetanotherorg/OpenShell/tree/kubevirt-sidecar) (fat pod-sidecar + rebase pile) |
+| `NVIDIA/NemoClaw` | [`vm-runtime-backend`](https://github.com/andyetanotherorg/NemoClaw/tree/vm-runtime-backend) @ `832c188` | [upstream](https://github.com/NVIDIA/NemoClaw/compare/main...andyetanotherorg:NemoClaw:vm-runtime-backend) · [fork](https://github.com/andyetanotherorg/NemoClaw/compare/main...vm-runtime-backend) | OpenShell-supervised identity (sibling **or parent**) + `nemoclaw-start-vm` (`NEMOCLAW_VM_SIDECAR=1`). **Archived:** [`kubevirt-sidecar`](https://github.com/andyetanotherorg/NemoClaw/tree/kubevirt-sidecar) |
 | `shanemcd/clankr` | [`main`](https://github.com/shanemcd/clankr) | — | Pod Hermes image; **bootc guest sources moved to** [`openshell-kubevirt/images/hermes`](./images/hermes/) |
-| `andyettanotherorg/openshell-kubevirt` | [`main`](https://github.com/andyettanotherorg/openshell-kubevirt) | — | Living handoff + iteration notes for this project |
+| `andyetanotherorg/openshell-kubevirt` | [`main`](https://github.com/andyetanotherorg/openshell-kubevirt) | — | Living handoff + iteration notes for this project |
 
 ## Bake outcomes (2026-07-10 evening → 2026-07-11 night)
 
@@ -533,12 +535,12 @@ Not a VM wiring bug. Image disables Discord. Rotate `DISCORD_BOT_TOKEN` on the *
 
 | Repo | Status |
 |------|--------|
-| agent-sandbox | Fork branch [`kubevirt-backend`](https://github.com/andyettanotherorg/agent-sandbox/tree/kubevirt-backend) @ [`a21b574`](https://github.com/andyettanotherorg/agent-sandbox/commit/a21b574d1f003209f49ae3c87621b6c606664a1a) includes VM backend + VCT→virtio. [Upstream compare](https://github.com/kubernetes-sigs/agent-sandbox/compare/main...andyettanotherorg:agent-sandbox:kubevirt-backend) · [same-fork vs main](https://github.com/andyettanotherorg/agent-sandbox/compare/main...kubevirt-backend). **No upstream PR yet.** |
-| OpenShell | Fork branch [`vm-runtime-backend`](https://github.com/andyettanotherorg/OpenShell/tree/vm-runtime-backend) @ [`1c79e1d`](https://github.com/andyettanotherorg/OpenShell/commit/1c79e1d73400821eb906267e1cc9915d25e020de) is the thin VM path. [Upstream compare](https://github.com/NVIDIA/OpenShell/compare/main...andyettanotherorg:OpenShell:vm-runtime-backend) · [same-fork vs main](https://github.com/andyettanotherorg/OpenShell/compare/main...vm-runtime-backend). **No upstream PR yet.** [`kubevirt-sidecar`](https://github.com/andyettanotherorg/OpenShell/tree/kubevirt-sidecar) archived. Discard `kubevirt-driver` (standalone POC). |
-| NemoClaw | Fork branch [`vm-runtime-backend`](https://github.com/andyettanotherorg/NemoClaw/tree/vm-runtime-backend) @ [`832c188`](https://github.com/andyettanotherorg/NemoClaw/commit/832c188792a2c58be72246d1eaafae3d09eef582). [Upstream compare](https://github.com/NVIDIA/NemoClaw/compare/main...andyettanotherorg:NemoClaw:vm-runtime-backend) · [same-fork vs main](https://github.com/andyettanotherorg/NemoClaw/compare/main...vm-runtime-backend). **No upstream PR yet.** [`kubevirt-sidecar`](https://github.com/andyettanotherorg/NemoClaw/tree/kubevirt-sidecar) archived. |
+| agent-sandbox | Fork branch [`kubevirt-backend`](https://github.com/andyetanotherorg/agent-sandbox/tree/kubevirt-backend) @ [`a21b574`](https://github.com/andyetanotherorg/agent-sandbox/commit/a21b574d1f003209f49ae3c87621b6c606664a1a) includes VM backend + VCT→virtio. [Upstream compare](https://github.com/kubernetes-sigs/agent-sandbox/compare/main...andyetanotherorg:agent-sandbox:kubevirt-backend) · [same-fork vs main](https://github.com/andyetanotherorg/agent-sandbox/compare/main...kubevirt-backend). **No upstream PR yet.** |
+| OpenShell | Fork branch [`vm-runtime-backend`](https://github.com/andyetanotherorg/OpenShell/tree/vm-runtime-backend) @ [`1c79e1d`](https://github.com/andyetanotherorg/OpenShell/commit/1c79e1d73400821eb906267e1cc9915d25e020de) is the thin VM path. [Upstream compare](https://github.com/NVIDIA/OpenShell/compare/main...andyetanotherorg:OpenShell:vm-runtime-backend) · [same-fork vs main](https://github.com/andyetanotherorg/OpenShell/compare/main...vm-runtime-backend). **No upstream PR yet.** [`kubevirt-sidecar`](https://github.com/andyetanotherorg/OpenShell/tree/kubevirt-sidecar) archived. Discard `kubevirt-driver` (standalone POC). |
+| NemoClaw | Fork branch [`vm-runtime-backend`](https://github.com/andyetanotherorg/NemoClaw/tree/vm-runtime-backend) @ [`832c188`](https://github.com/andyetanotherorg/NemoClaw/commit/832c188792a2c58be72246d1eaafae3d09eef582). [Upstream compare](https://github.com/NVIDIA/NemoClaw/compare/main...andyetanotherorg:NemoClaw:vm-runtime-backend) · [same-fork vs main](https://github.com/andyetanotherorg/NemoClaw/compare/main...vm-runtime-backend). **No upstream PR yet.** [`kubevirt-sidecar`](https://github.com/andyetanotherorg/NemoClaw/tree/kubevirt-sidecar) archived. |
 | clankr | [`shanemcd/clankr` `main`](https://github.com/shanemcd/clankr) — lean image/config/docs. |
 
-Local clones: OpenShell remotes should be `origin=NVIDIA/OpenShell`, `fork=andyettanotherorg/OpenShell`. NemoClaw: `upstream=NVIDIA/NemoClaw`, `fork=andyettanotherorg/NemoClaw`. agent-sandbox: `origin=kubernetes-sigs/agent-sandbox`, `fork=andyettanotherorg/agent-sandbox`.
+Local clones: OpenShell remotes should be `origin=NVIDIA/OpenShell`, `fork=andyetanotherorg/OpenShell`. NemoClaw: `upstream=NVIDIA/NemoClaw`, `fork=andyetanotherorg/NemoClaw`. agent-sandbox: `origin=kubernetes-sigs/agent-sandbox`, `fork=andyetanotherorg/agent-sandbox`.
 
 ## Workspace PVC design (2026-07-10/11)
 
@@ -576,7 +578,7 @@ Thin PR on current NVIDIA `main` (~11 files / ~550 LOC). **No** pod sidecar topo
 
 Helm `gateway-config` keys: `runtimeBackend`, `sandboxCommand`, `workspacePersistence`.
 
-> **Archived:** fork branch [`kubevirt-sidecar`](https://github.com/andyettanotherorg/OpenShell/tree/kubevirt-sidecar) carried pod sidecar topology + unrelated upstream rebases; do not use for Hermes VM. Early standalone `openshell-driver-kubevirt` POC on `kubevirt-driver` remains discarded.
+> **Archived:** fork branch [`kubevirt-sidecar`](https://github.com/andyetanotherorg/OpenShell/tree/kubevirt-sidecar) carried pod sidecar topology + unrelated upstream rebases; do not use for Hermes VM. Early standalone `openshell-driver-kubevirt` POC on `kubevirt-driver` remains discarded.
 
 ### `kubernetes-sigs/agent-sandbox` → fork branch `kubevirt-backend`
 
