@@ -296,12 +296,13 @@ virtctl ssh root@vmi/hermes -n default -i ~/.ssh/id_rsa \
 
 Do **not** set `SUPERVISOR_MODE=network` without `sandbox-workload` — Hermes will not start and `exec` will hang.
 
-On **hermes-minimal / site**, both modes exec the same
-`/usr/local/bin/sandbox-entrypoint` → `hermes-start.sh` (gateway + dashboard
-children). Combined: OpenShell is the parent (Landlock). Network:
-`sandbox-workload` nsenter + setpriv, then the same script (no Landlock).
-Gateway `sandbox_command` / create `--env OPENSHELL_SANDBOX_COMMAND=…` can
-override; prefer leaving it empty so the image owns the default.
+On **hermes-minimal / site**, gateway is always
+`/usr/local/bin/sandbox-entrypoint` → `hermes-start.sh` → **exec**
+`hermes gateway run` (foreground MainPID). Dashboard is
+`hermes-dashboard.service` (joins sandbox netns; systemd `Restart=`). Combined:
+OpenShell parents the gateway (Landlock). Network: `sandbox-workload` nsenter +
+setpriv, then the same entrypoint. Gateway `sandbox_command` / create
+`--env OPENSHELL_SANDBOX_COMMAND=…` can override; prefer leaving it empty.
 
 ## 4. Smoke
 
@@ -333,11 +334,10 @@ CLI form (combined mode): `openshell sandbox exec whoami` — sandbox name is `-
 
 ### Dashboard (site / hermes-minimal)
 
-`hermes-start.sh` runs under **either** supervisor mode (combined Landlock
-child, or network-mode `sandbox-workload` sibling) and forks `hermes gateway`
-+ `hermes dashboard`. Children inherit proxy/TLS so chat can reach
-`inference.local` via `HTTPS_PROXY`. PTY allocation uses `/dev/pts/ptmx`
-(`sitecustomize` + pts remount). After Ready:
+Gateway is a foreground OpenShell / `sandbox-workload` leaf; dashboard is
+`hermes-dashboard.service` in the sandbox netns (`Restart=on-failure` each).
+Proxy/TLS for chat/`inference.local` is set in `hermes-dashboard-run.sh`. PTY
+via `sitecustomize` + pts remount. After Ready:
 
 ```bash
 export OPENSHELL_GATEWAY=crc
@@ -345,9 +345,8 @@ openshell forward service hermes --target-port 9119 --local 9119
 # → http://127.0.0.1:9119
 ```
 
-Do **not** run `hermes dashboard` by hand (and do not omit `HERMES_TUI_DIR` —
-the entrypoint sets `HERMES_TUI_DIR=/opt/hermes/ui-tui` so chat does not
-`npm install`).
+Do **not** run `hermes dashboard` by hand — the unit sets
+`HERMES_TUI_DIR=/opt/hermes/ui-tui` so chat does not `npm install`.
 
 ## 5. CRC create gotchas (2026-08-13)
 

@@ -9,7 +9,7 @@ and layer on the **hermes-minimal** bootc image.
 | Variant | Containerfile | GHCR bootc | GHCR containerDisk | Workload |
 |---------|---------------|------------|--------------------|----------|
 | **nemoclaw** (default) | `Containerfile.nemoclaw` | `hermes-sandbox-bootc` | `hermes-sandbox-kubevirt` | `nemoclaw-start-vm` (config seals / MCP integrity) |
-| **hermes-minimal** | `Containerfile.minimal` | `hermes-minimal-bootc` | `hermes-minimal-kubevirt` | `hermes-start.sh` → gateway + dashboard processes (`:9119`) |
+| **hermes-minimal** | `Containerfile.minimal` | `hermes-minimal-bootc` | `hermes-minimal-kubevirt` | `hermes-start` → gateway (fg); `hermes-dashboard.service` → UI `:9119` |
 
 Both images symlink `/usr/local/bin/sandbox-entrypoint` to the variant
 entrypoint. Shared scripts default `OPENSHELL_SANDBOX_COMMAND` to that path.
@@ -40,17 +40,18 @@ nemoclaw variant takes Hermes from the `nemoclaw-hermes` image.
 
 ## Supervisor modes (runtime switch)
 
-Same Hermes entrypoint in both modes (`sandbox-entrypoint` → `hermes-start.sh`
-on minimal/site). Only who launches it changes:
+Same gateway entrypoint in both modes (`sandbox-entrypoint` → `hermes-start.sh`
+on minimal/site). Dashboard is always a system unit on the sandbox netns.
 
-| Mode | How | Who execs `hermes-start` | Landlock on Hermes |
-|------|-----|--------------------------|--------------------|
-| **combined** (default) | `openshell-sandbox` `--mode network,process` | OpenShell process leaf | yes |
-| **network** | `openshell-sandbox` `--mode network` + `sandbox-workload` | `sandbox-workload` after `nsenter` + `setpriv` | no |
+| Mode | How | Gateway MainPID | Landlock on gateway | Dashboard |
+|------|-----|-----------------|---------------------|-----------|
+| **combined** (default) | `openshell-sandbox` `--mode network,process` | OpenShell process leaf | yes | `hermes-dashboard.service` (`nsenter` netns) |
+| **network** | `openshell-sandbox` `--mode network` + `sandbox-workload` | `sandbox-workload` after `nsenter` + `setpriv` | no | same unit |
 
-`hermes-start` always forks gateway + dashboard in-process (no nested
-`systemd --user` — that breaks under combined Landlock cgroups; linger
-`user@UID` is the wrong netns).
+`hermes-start` **exec**s `hermes gateway run` only (no job control). Gateway
+exit → parent `Restart=on-failure` (`openshell-sandbox` or `sandbox-workload`).
+Dashboard exit → `hermes-dashboard.service` `Restart=on-failure`. Linger
+`user@UID` stays for podman only (wrong netns for Hermes).
 
 ```bash
 # On the guest (root):
@@ -91,25 +92,20 @@ if needed.
 
 ## Dashboard (hermes-minimal / site)
 
-`hermes-start.sh` is the dual-mode workload: OpenShell (combined) or
-`sandbox-workload` (network) execs it; it forks:
+| Unit / process | Role | Restart owner |
+|----------------|------|---------------|
+| `hermes-start` → `hermes gateway run` | Messaging gateway (OpenShell leaf or `sandbox-workload`) | `openshell-sandbox` / `sandbox-workload` |
+| `hermes-dashboard.service` | Web UI on `127.0.0.1:9119` in sandbox netns | systemd `Restart=on-failure` |
 
-| Process | Role |
-|---------|------|
-| `hermes gateway run` | Messaging gateway |
-| `hermes dashboard` | Web UI on `127.0.0.1:9119` with `HERMES_TUI_DIR=/opt/hermes/ui-tui` |
-
-Children inherit proxy/TLS env (OpenShell-injected in combined; set by
-`sandbox-workload-run.sh` in network). Snapshot:
-`/sandbox/.hermes/runtime/workload.env`.
+Dashboard joins the netns via `hermes-dashboard-run.sh` (proxy/TLS +
+`setpriv`). It is **not** under combined-mode Landlock (FS); egress still
+uses the OpenShell L7 proxy. `HERMES_TUI_DIR=/opt/hermes/ui-tui` is set so
+chat does not `npm install`.
 
 | Extra | Role |
 |-------|------|
-| `sitecustomize.py` | In Hermes venv `site-packages` + `PYTHONPATH`; routes `openpty` to `/dev/pts/ptmx` (OpenShell denies `/dev/ptmx`) |
-| `workload.env` | Written by `hermes-start` each boot; carries `HTTPS_PROXY` / CA for inspection |
-
-`prepare-sandbox-volumes.sh` remounts `/dev/pts` with `ptmxmode=666` so
-`/dev/pts/ptmx` is usable inside the Landlock tree.
+| `sitecustomize.py` | Venv + `PYTHONPATH`; `openpty` → `/dev/pts/ptmx` |
+| `prepare-sandbox-volumes.sh` | Remounts `/dev/pts` with `ptmxmode=666` |
 
 Host: only port-forward after the sandbox is Ready:
 
@@ -122,5 +118,7 @@ openshell forward service <sandbox> --target-port 9119 --local 9119
 Inspect inside the guest:
 
 ```bash
-openshell sandbox exec -- bash -lc 'pgrep -af "hermes gateway|hermes dashboard"; tail -n 50 /sandbox/.hermes/runtime/*.log'
+openshell sandbox exec -- bash -lc 'pgrep -af "hermes gateway"; curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:9119/'
+# root / virtctl:
+systemctl status hermes-dashboard
 ```

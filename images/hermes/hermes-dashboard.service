@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Agent web dashboard (sandbox netns, 127.0.0.1:9119)
+Documentation=https://github.com/NousResearch/hermes-agent
+After=openshell-sandbox.service
+BindsTo=openshell-sandbox.service
+
+[Service]
+Type=simple
+# Joins the OpenShell sandbox netns (see hermes-dashboard-run.sh). Used in
+# combined and network supervisor modes so gateway can remain a foreground leaf.
+ExecStart=/usr/local/lib/openshell/hermes-dashboard-run.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=openshell-sandbox.service

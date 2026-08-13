@@ -70,6 +70,8 @@ case "$cmd" in
     fi
     echo "hermes tree:"
     pgrep -af 'hermes-start|hermes gateway|hermes dashboard' || echo "  (none)"
+    echo -n "hermes-dashboard: "
+    systemctl is-active hermes-dashboard 2>/dev/null || echo inactive
     exit 0
     ;;
   combined|network) ;;
@@ -133,3 +135,4 @@ fi
 echo "mode=$(current_mode)"
 pgrep -af '/opt/openshell/bin/openshell-sandbox' || true
 pgrep -af 'hermes-start|hermes gateway|hermes dashboard' || true
+systemctl is-active hermes-dashboard 2>/dev/null || true
