@@ -80,8 +80,11 @@ jobs:
     outputs:
       sha: ${{ steps.rebase.outputs.sha }}
     steps:
+      # App token only needed to force-push the feature branch. Public checkout
+      # with github.token is enough when rebase=false (image bake / proof runs).
       - uses: actions/create-github-app-token@v3
         id: app-token
+        if: needs.meta.outputs.rebase == 'true'
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -92,7 +95,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/agent-sandbox
           ref: kubevirt-backend
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ needs.meta.outputs.rebase == 'true' && steps.app-token.outputs.token || github.token }}
           fetch-depth: 0
           path: src
 
@@ -135,6 +138,7 @@ jobs:
     steps:
       - uses: actions/create-github-app-token@v3
         id: app-token
+        if: needs.meta.outputs.rebase == 'true'
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -145,7 +149,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/OpenShell
           ref: vm-runtime-backend
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ needs.meta.outputs.rebase == 'true' && steps.app-token.outputs.token || github.token }}
           fetch-depth: 0
           path: src
 
@@ -187,6 +191,7 @@ jobs:
     steps:
       - uses: actions/create-github-app-token@v3
         id: app-token
+        if: needs.meta.outputs.rebase == 'true'
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -197,7 +202,7 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/NemoClaw
           ref: vm-runtime-backend
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ needs.meta.outputs.rebase == 'true' && steps.app-token.outputs.token || github.token }}
           fetch-depth: 0
           path: src
 
