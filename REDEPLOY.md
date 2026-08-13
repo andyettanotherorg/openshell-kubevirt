@@ -328,12 +328,12 @@ CLI form (combined mode): `openshell sandbox exec whoami` — sandbox name is `-
 
 ### Dashboard (site / hermes-minimal)
 
-Guest image starts `hermes-gateway` + `hermes-dashboard` under a nested
-`systemd --user` (`hermes.target`) inside the OpenShell netns. `hermes-start.sh`
-snapshots OpenShell proxy/TLS env into `workload.env` so dashboard chat can
-reach `inference.local` via `HTTPS_PROXY` (the name does not resolve in DNS).
-PTY allocation uses `/dev/pts/ptmx` (`sitecustomize` + pts remount) because
-Landlock denies `/dev/ptmx`. After Ready:
+Guest image runs `hermes gateway` + `hermes dashboard` as children of
+`hermes-start.sh` inside the OpenShell Landlock/netns tree (not nested
+`systemd --user` — that fails under Landlock cgroup restrictions). Children
+inherit OpenShell proxy/TLS env so dashboard chat can reach `inference.local`
+via `HTTPS_PROXY`. PTY allocation uses `/dev/pts/ptmx` (`sitecustomize` +
+pts remount) because Landlock denies `/dev/ptmx`. After Ready:
 
 ```bash
 export OPENSHELL_GATEWAY=crc
@@ -342,7 +342,8 @@ openshell forward service hermes --target-port 9119 --local 9119
 ```
 
 Do **not** run `hermes dashboard` by hand (and do not omit `HERMES_TUI_DIR` —
-the unit sets `HERMES_TUI_DIR=/opt/hermes/ui-tui` so chat does not `npm install`).
+the entrypoint sets `HERMES_TUI_DIR=/opt/hermes/ui-tui` so chat does not
+`npm install`).
 
 ## 5. CRC create gotchas (2026-08-13)
 
