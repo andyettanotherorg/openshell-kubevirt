@@ -429,10 +429,11 @@ jobs:
           set -euo pipefail
           SHORT="${SHA:0:7}"
           IMAGE="${REGISTRY}/nemoclaw-hermes"
+          # Do not override BASE_IMAGE with :latest — NVIDIA's public tag is
+          # missing/403; agents/hermes/Dockerfile pins a digest by default.
           docker buildx build \
             --platform=linux/amd64 \
             --push \
-            --build-arg BASE_IMAGE=ghcr.io/nvidia/nemoclaw/hermes-sandbox-base:latest \
             -t "${IMAGE}:nightly" \
             -t "${IMAGE}:${DATE}" \
             -t "${IMAGE}:sha-${SHORT}" \
