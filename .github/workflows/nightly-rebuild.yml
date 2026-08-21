@@ -341,7 +341,7 @@ jobs:
         with:
           workspaces: src
           shared-key: openshell-gateway
-          prefix-key: v1-rust
+          prefix-key: v2-rust
           cache-on-failure: true
 
       - name: Stage gateway binary and push image
